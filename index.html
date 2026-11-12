@@ -78,9 +78,13 @@
     .stage-svg {
       width: 100%;
       height: auto;
-      max-height: 425px;
+      max-height: 540px;
       display: block;
       touch-action: none;
+    }
+
+    #survival-stage {
+      max-height: 390px;
     }
 
     .grab-target {
@@ -123,13 +127,21 @@
     .shake-hint {
       animation: shakeX 0.32s ease;
     }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); transform: scale(1); }
+      50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); transform: scale(1.02); }
+    }
+    .cta-pulse {
+      animation: pulseGlow 1.6s infinite ease-in-out;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
   <!-- TOP NAVIGATION -->
-  <header class="w-full max-w-5xl mx-auto px-3 sm:px-5 pt-3 pb-2">
-    <div class="studio-card px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  <header class="w-full max-w-7xl mx-auto px-3 sm:px-5 pt-3 pb-2">
+    <div class="studio-card px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shrink-0 shadow-sm">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round">
@@ -161,7 +173,7 @@
     </div>
   </header>
 
-  <main class="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-5 py-1.5 pb-5">
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-5 py-1.5 pb-5">
 
     <!-- ========================================================= -->
     <!-- MODE 1: MYSTERY SPECIMEN DISCOVERY LAB (6 ORGANISMS)      -->
@@ -200,16 +212,16 @@
       <div class="studio-card p-3 sm:p-4 space-y-2.5">
 
         <!-- Top Specimen Title + Action Prompt Bar -->
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <span id="specimen-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white font-black text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span id="specimen-badge" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-900 text-white font-black text-xs sm:text-sm">
               <span>#1 Hydra</span>
               <span id="mystery-tag" class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] uppercase tracking-wider">?</span>
             </span>
 
-            <div id="prompt-pill" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-950 font-extrabold text-xs sm:text-sm">
-              <span id="prompt-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-              <span id="prompt-text">Rub the glowing bud to grow it!</span>
+            <div id="prompt-pill" class="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-sky-600 border-2 border-sky-700 text-white font-black text-sm sm:text-base shadow-md">
+              <span id="prompt-dot" class="w-3 h-3 rounded-full bg-amber-300 animate-ping shrink-0"></span>
+              <span id="prompt-text">Feed the glowing orange-yellow nutrients to the Hydra or rub its bud!</span>
             </div>
           </div>
 
@@ -223,114 +235,125 @@
           </div>
         </div>
 
-        <!-- 880x420 Responsive SVG Canvas + Discovery Check Overlay -->
-        <div class="stage-frame">
-          <svg id="explore-stage" class="stage-svg" viewBox="0 0 880 420" width="100%" height="auto" preserveAspectRatio="xMidYMid meet"></svg>
+        <!-- Stage + Persistent Side Clue & Classification Panel (Large Primary Console + Compact Clues) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
 
-          <!-- Floating Discovery Check Card (Critical Thinking Inference) -->
-          <div id="discovery-overlay" class="hidden absolute bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:w-[430px] toast-enter">
-            <div id="discovery-card" class="bg-white/95 backdrop-blur-md border-2 border-amber-400 rounded-2xl p-3.5 shadow-2xl space-y-2.5">
+          <!-- 880x420 Responsive SVG Canvas -->
+          <div class="lg:col-span-9 stage-frame flex items-center">
+            <svg id="explore-stage" class="stage-svg" viewBox="0 0 880 420" width="100%" height="auto" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+
+          <!-- Always-Visible Clue Board & Classification Card -->
+          <div class="lg:col-span-3 flex flex-col justify-between gap-2.5 bg-slate-50/90 border-2 border-slate-200/90 rounded-2xl p-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500">Observation Clues</span>
+                <span id="clue-status-badge" class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-black">Locked</span>
+              </div>
+
+              <!-- Clue 1: Parents -->
+              <div id="clue-card-1" class="px-3 py-2 rounded-xl bg-white border border-slate-200/80 flex items-center gap-2.5 transition-all">
+                <div id="clue-icon-1" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                    <circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-4 12.5-4 14 0"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Parents</div>
+                  <div id="stat-parents" class="font-black text-xs text-slate-400 truncate">???</div>
+                </div>
+              </div>
+
+              <!-- Clue 2: Process -->
+              <div id="clue-card-2" class="px-3 py-2 rounded-xl bg-white border border-slate-200/80 flex items-center gap-2.5 transition-all">
+                <div id="clue-icon-2" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                    <circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Process</div>
+                  <div id="stat-process" class="font-black text-xs text-slate-400 truncate">???</div>
+                </div>
+              </div>
+
+              <!-- Clue 3: Offspring DNA -->
+              <div id="clue-card-3" class="px-3 py-2 rounded-xl bg-white border border-slate-200/80 flex items-center gap-2.5 transition-all">
+                <div id="clue-icon-3" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                    <path d="M7 4c4 3 4 7 0 10s-4 6 0 6"/><path d="M17 4c-4 3-4 7 0 10s4 6 0 6"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Offspring DNA</div>
+                  <div id="stat-offspring" class="font-black text-xs text-slate-400 truncate">???</div>
+                </div>
+              </div>
+            </div>
+            <!-- Interactive Check Your Clues Box (Always Visible, Taller & More Prominent) -->
+            <div id="discovery-card" class="flex-1 flex flex-col justify-center min-h-[155px] rounded-2xl p-3.5 bg-white border-2 border-slate-300 transition-all">
+              <!-- Locked State -->
+              <div id="locked-phase" class="text-center py-4 space-y-1">
+                <div class="text-xs font-black uppercase tracking-wider text-slate-400">Check Your Clues</div>
+                <div class="text-xs sm:text-sm font-extrabold text-slate-600 leading-snug">Complete the stage action to unlock classification</div>
+              </div>
 
               <!-- Step A: Student Infers Asexual vs Sexual from Clues -->
-              <div id="quiz-phase" class="space-y-2.5">
-                <div class="flex items-start justify-between gap-2">
-                  <div>
-                    <div class="text-[11px] font-black uppercase tracking-wider text-amber-700">Check Your Clues</div>
-                    <div class="font-black text-xs sm:text-sm text-slate-900 leading-snug mt-0.5">
-                      Which form of reproduction is this?
-                    </div>
-                  </div>
+              <div id="quiz-phase" class="hidden space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-black uppercase tracking-wider text-amber-800">Check Your Clues!</span>
+                  <span class="text-xs font-extrabold text-slate-600">Pick one:</span>
                 </div>
+                <div id="quiz-hint" class="hidden px-3 py-1.5 rounded-xl bg-rose-100 border border-rose-300 text-rose-900 text-xs font-extrabold leading-snug"></div>
 
-                <div id="quiz-hint" class="hidden px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-extrabold"></div>
-
-                <div class="grid grid-cols-2 gap-2">
-                  <button onclick="submitClassification('asexual')" class="btn-pill p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-400 text-emerald-950 flex flex-col items-center gap-1 text-center">
-                    <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+                <div class="grid grid-cols-1 gap-2.5">
+                  <button onclick="submitClassification('asexual')" class="btn-pill px-3.5 py-3 rounded-xl bg-white hover:bg-emerald-50 border-2 border-emerald-500 text-emerald-950 flex items-center gap-2.5 text-left shadow-sm">
+                    <svg width="26" height="26" viewBox="0 0 28 28" fill="none" class="shrink-0">
                       <circle cx="9" cy="14" r="6" fill="#10B981"/>
                       <path d="M16 14H22M20 11L23 14L20 17" stroke="#059669" stroke-width="2.2" stroke-linecap="round"/>
                       <circle cx="24" cy="14" r="3" fill="#34D399"/>
                     </svg>
-                    <span class="text-xs font-black">Asexual</span>
-                    <span class="text-[10px] font-bold text-emerald-700">1 Parent &bull; Clone</span>
+                    <div>
+                      <div class="text-sm font-black leading-tight">Asexual</div>
+                      <div class="text-[11px] font-bold text-emerald-700 leading-tight">1 Parent • Identical Clone</div>
+                    </div>
                   </button>
 
-                  <button onclick="submitClassification('sexual')" class="btn-pill p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-400 text-indigo-950 flex flex-col items-center gap-1 text-center">
-                    <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+                  <button onclick="submitClassification('sexual')" class="btn-pill px-3.5 py-3 rounded-xl bg-white hover:bg-indigo-50 border-2 border-indigo-500 text-indigo-950 flex items-center gap-2.5 text-left shadow-sm">
+                    <svg width="26" height="26" viewBox="0 0 28 28" fill="none" class="shrink-0">
                       <circle cx="8" cy="10" r="4.5" fill="#6366F1"/>
                       <circle cx="8" cy="19" r="4.5" fill="#EC4899"/>
                       <path d="M14 14.5H19" stroke="#4F46E5" stroke-width="2.2" stroke-linecap="round"/>
                       <circle cx="23" cy="14.5" r="4.5" fill="#8B5CF6"/>
                     </svg>
-                    <span class="text-xs font-black">Sexual</span>
-                    <span class="text-[10px] font-bold text-indigo-700">2 Parents &bull; Unique Mix</span>
+                    <div>
+                      <div class="text-sm font-black leading-tight">Sexual</div>
+                      <div class="text-[11px] font-bold text-indigo-700 leading-tight">2 Parents • Unique Mix</div>
+                    </div>
                   </button>
                 </div>
               </div>
 
-              <!-- Step B: Confirmed Takeaway + Next Organism Button -->
-              <div id="confirmed-phase" class="hidden space-y-2.5">
+              <!-- Step B: Confirmed Takeaway + Prominent Next Specimen CTA -->
+              <div id="confirmed-phase" class="hidden space-y-3">
                 <div class="flex items-start gap-2.5">
                   <div id="confirmed-icon" class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-black text-base">
                     &#10003;
                   </div>
                   <div>
-                    <div id="banner-title" class="font-black text-xs sm:text-sm text-emerald-800">Correct! Asexual: Budding</div>
-                    <div id="banner-sub" class="text-xs font-bold text-slate-600 mt-0.5 leading-snug">
+                    <div id="banner-title" class="font-black text-sm text-emerald-800">Correct! Asexual: Budding</div>
+                    <div id="banner-sub" class="text-xs font-bold text-slate-700 leading-snug mt-1">
                       1 parent grows an identical clone via mitosis—no sex cells needed!
                     </div>
                   </div>
                 </div>
-                <div class="flex justify-end">
-                  <button id="banner-next-btn" onclick="goNextOrganism()" class="btn-pill px-4 py-2 text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-md animate-bounce">
-                    Next Specimen &rarr;
-                  </button>
-                </div>
+                <button id="banner-next-btn" onclick="goNextOrganism()" class="w-full btn-pill cta-pulse py-3 px-4 text-sm bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-amber-500 shadow-md flex items-center justify-center gap-2">
+                  <span>Next Specimen</span>
+                  <span class="text-base leading-none">&rarr;</span>
+                </button>
               </div>
+            </div>
 
-            </div>
-          </div>
-        </div>
-
-        <!-- Visual Observation Clue Strip (Unlocks progressively as student interacts!) -->
-        <div id="clue-bar" class="grid grid-cols-3 gap-2">
-          <!-- Clue 1: Parents -->
-          <div id="clue-card-1" class="px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5 transition-all">
-            <div id="clue-icon-1" class="w-8 h-8 rounded-xl bg-slate-200/70 text-slate-500 flex items-center justify-center shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-                <circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-4 12.5-4 14 0"/>
-              </svg>
-            </div>
-            <div class="min-w-0">
-              <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Parents</div>
-              <div id="stat-parents" class="font-black text-xs sm:text-sm text-slate-400 truncate">???</div>
-            </div>
-          </div>
-
-          <!-- Clue 2: Process -->
-          <div id="clue-card-2" class="px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5 transition-all">
-            <div id="clue-icon-2" class="w-8 h-8 rounded-xl bg-slate-200/70 text-slate-500 flex items-center justify-center shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-                <circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/>
-              </svg>
-            </div>
-            <div class="min-w-0">
-              <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Process</div>
-              <div id="stat-process" class="font-black text-xs sm:text-sm text-slate-400 truncate">???</div>
-            </div>
-          </div>
-
-          <!-- Clue 3: Offspring DNA -->
-          <div id="clue-card-3" class="px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5 transition-all">
-            <div id="clue-icon-3" class="w-8 h-8 rounded-xl bg-slate-200/70 text-slate-500 flex items-center justify-center shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-                <path d="M7 4c4 3 4 7 0 10s-4 6 0 6"/><path d="M17 4c-4 3-4 7 0 10s4 6 0 6"/>
-              </svg>
-            </div>
-            <div class="min-w-0">
-              <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Offspring DNA</div>
-              <div id="stat-offspring" class="font-black text-xs sm:text-sm text-slate-400 truncate">???</div>
-            </div>
           </div>
         </div>
 
@@ -363,10 +386,10 @@
         </div>
 
         <div class="stage-frame">
-          <svg id="survival-stage" class="stage-svg" viewBox="0 0 880 390" width="100%" height="auto" preserveAspectRatio="xMidYMid meet"></svg>
+          <svg id="survival-stage" class="stage-svg" viewBox="0 0 880 330" width="100%" height="auto" preserveAspectRatio="xMidYMid meet"></svg>
         </div>
 
-        <div id="survival-takeaway" class="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-center font-extrabold text-xs sm:text-sm text-slate-700">
+        <div id="survival-takeaway" class="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-center font-extrabold text-sm sm:text-base text-slate-800">
           🧬 Tap <strong>Multiply Colonies</strong> first, then test 🦠 <strong>Virus Attack</strong> or 🔥 <strong>Heatwave</strong>!
         </div>
 
@@ -492,11 +515,11 @@
       const dot = document.getElementById('prompt-dot');
       document.getElementById('prompt-text').textContent = text;
       if (done) {
-        pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-950 font-extrabold text-xs sm:text-sm';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0';
+        pill.className = 'inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-600 border-2 border-emerald-700 text-white font-black text-sm sm:text-base shadow-md';
+        dot.className = 'w-3 h-3 rounded-full bg-emerald-200 shrink-0';
       } else {
-        pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-950 font-extrabold text-xs sm:text-sm';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0';
+        pill.className = 'inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-sky-600 border-2 border-sky-700 text-white font-black text-sm sm:text-base shadow-md';
+        dot.className = 'w-3 h-3 rounded-full bg-amber-300 animate-ping shrink-0';
       }
     }
 
@@ -505,30 +528,33 @@
       const icon = document.getElementById(`clue-icon-${idx}`);
       const text = document.getElementById(idx === 1 ? 'stat-parents' : idx === 2 ? 'stat-process' : 'stat-offspring');
       text.textContent = value;
-      text.className = 'font-black text-xs sm:text-sm text-slate-900 truncate';
+      text.className = 'font-black text-xs text-slate-900 truncate';
       if (tone === 'clone') {
-        card.className = 'px-3 py-2 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center gap-2.5 transition-all';
-        icon.className = 'w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0';
+        card.className = 'px-3 py-2 rounded-xl bg-emerald-50/90 border border-emerald-300 flex items-center gap-2.5 transition-all';
+        icon.className = 'w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0';
       } else if (tone === 'mix') {
-        card.className = 'px-3 py-2 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center gap-2.5 transition-all';
-        icon.className = 'w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0';
+        card.className = 'px-3 py-2 rounded-xl bg-indigo-50/90 border border-indigo-300 flex items-center gap-2.5 transition-all';
+        icon.className = 'w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0';
       } else {
-        card.className = 'px-3 py-2 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center gap-2.5 transition-all';
-        icon.className = 'w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0';
+        card.className = 'px-3 py-2 rounded-xl bg-amber-50/90 border border-amber-300 flex items-center gap-2.5 transition-all';
+        icon.className = 'w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0';
       }
     }
 
     function resetClues() {
+      const badge = document.getElementById('clue-status-badge');
+      badge.textContent = 'Locked';
+      badge.className = 'px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-black';
       [1, 2, 3].forEach(idx => {
         document.getElementById(`clue-card-${idx}`).className =
-          'px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5 transition-all';
+          'px-3 py-2 rounded-xl bg-white border border-slate-200/80 flex items-center gap-2.5 transition-all';
         document.getElementById(`clue-icon-${idx}`).className =
-          'w-8 h-8 rounded-xl bg-slate-200/70 text-slate-500 flex items-center justify-center shrink-0';
+          'w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0';
       });
       ['stat-parents', 'stat-process', 'stat-offspring'].forEach(id => {
         const el = document.getElementById(id);
         el.textContent = '???';
-        el.className = 'font-black text-xs sm:text-sm text-slate-400 truncate';
+        el.className = 'font-black text-xs text-slate-400 truncate';
       });
     }
 
@@ -574,15 +600,20 @@
       unlockClue(1, d.parents, d.type === 'asexual' ? 'clone' : 'mix');
       unlockClue(2, d.process, d.type === 'asexual' ? 'clone' : 'mix');
       unlockClue(3, d.offspring, d.type === 'asexual' ? 'clone' : 'mix');
-      setPrompt('Clues unlocked! Choose Asexual or Sexual below.', true);
+      setPrompt('Clues unlocked! Choose Asexual or Sexual on the right.', true);
 
-      const overlay = document.getElementById('discovery-overlay');
-      overlay.classList.remove('hidden');
+      const badge = document.getElementById('clue-status-badge');
+      badge.textContent = 'Clues Ready!';
+      badge.className = 'px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black';
+
+      document.getElementById('locked-phase').classList.add('hidden');
       document.getElementById('quiz-hint').classList.add('hidden');
 
       if (explored[currentOrg]) {
         showConfirmedState();
       } else {
+        document.getElementById('discovery-card').className =
+          'flex-1 flex flex-col justify-center min-h-[155px] rounded-2xl p-3.5 bg-amber-50 border-2 border-amber-400 shadow-md toast-enter transition-all';
         document.getElementById('quiz-phase').classList.remove('hidden');
         document.getElementById('confirmed-phase').classList.add('hidden');
       }
@@ -591,21 +622,28 @@
     function showConfirmedState() {
       const d = ORG_DATA[currentOrg];
       const isAsex = d.type === 'asexual';
+      const badge = document.getElementById('clue-status-badge');
+      badge.textContent = 'Solved';
+      badge.className = `px-2 py-0.5 rounded-full ${isAsex ? 'bg-emerald-200 text-emerald-900' : 'bg-indigo-200 text-indigo-900'} text-[10px] font-black`;
+
+      document.getElementById('locked-phase').classList.add('hidden');
       document.getElementById('quiz-phase').classList.add('hidden');
       document.getElementById('confirmed-phase').classList.remove('hidden');
       document.getElementById('discovery-card').className =
-        `bg-white/95 backdrop-blur-md border-2 ${isAsex ? 'border-emerald-400' : 'border-indigo-400'} rounded-2xl p-3.5 shadow-2xl space-y-2.5`;
+        `flex-1 flex flex-col justify-center min-h-[155px] rounded-2xl p-3.5 ${isAsex ? 'bg-emerald-50 border-emerald-400' : 'bg-indigo-50 border-indigo-400'} border-2 shadow-sm transition-all`;
       document.getElementById('confirmed-icon').className =
         `w-8 h-8 rounded-xl ${isAsex ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center shrink-0 font-black text-base`;
       document.getElementById('banner-title').className =
-        `font-black text-xs sm:text-sm ${isAsex ? 'text-emerald-800' : 'text-indigo-800'}`;
+        `font-black text-sm ${isAsex ? 'text-emerald-800' : 'text-indigo-800'}`;
       document.getElementById('banner-title').textContent =
         `Correct! ${isAsex ? 'Asexual' : 'Sexual'}: ${d.method}`;
       document.getElementById('banner-sub').textContent = d.takeaway;
 
       const idx = ORG_ORDER.indexOf(currentOrg);
       const nextBtn = document.getElementById('banner-next-btn');
-      nextBtn.innerHTML = idx < ORG_ORDER.length - 1 ? 'Next Specimen &rarr;' : 'Go to Survival Lab &rarr;';
+      nextBtn.innerHTML = idx < ORG_ORDER.length - 1
+        ? `<span>Next: ${ORG_DATA[ORG_ORDER[idx + 1]].name}</span><span class="text-base leading-none">&rarr;</span>`
+        : `<span>Go to Survival Lab</span><span class="text-base leading-none">&rarr;</span>`;
 
       const tag = document.getElementById('mystery-tag');
       tag.textContent = isAsex ? 'Asexual' : 'Sexual';
@@ -659,7 +697,10 @@
       // Always reset the interactive stage back to Step 1 so students can replay & manipulate repeatedly
       dragInfo = null;
       fxParticles = [];
-      document.getElementById('discovery-overlay').classList.add('hidden');
+      document.getElementById('discovery-card').className = 'flex-1 flex flex-col justify-center min-h-[155px] rounded-2xl p-3.5 bg-white border-2 border-slate-300 transition-all';
+      document.getElementById('locked-phase').classList.remove('hidden');
+      document.getElementById('quiz-phase').classList.add('hidden');
+      document.getElementById('confirmed-phase').classList.add('hidden');
       document.getElementById('btn-breed-again').classList.toggle('hidden', id !== 'fowl');
       resetClues();
       updateProgressHeader();
@@ -674,17 +715,17 @@
             { x: 185, y: 215, tx: 185, ty: 215, used: false, phase: 2.1 }
           ]
         };
-        setPrompt('Feed glowing nutrient bubbles to the Hydra or rub its bud!');
+        setPrompt('Feed the glowing orange-yellow nutrients to the Hydra or rub its bud!');
       } else if (id === 'seastar') {
         state = {
-          sliced: false, splitT: 0, bladeTrail: [],
+          sliced: false, sliceProgress: 0, visualSlice: 0, splitT: 0, bladeTrail: [],
           leftRegen: 0, rightRegen: 0, regenDone: false,
           droplets: [
             { x: 130, y: 120, tx: 130, ty: 120, used: false },
             { x: 750, y: 120, tx: 750, ty: 120, used: false }
           ]
         };
-        setPrompt('Swipe across the dashed line to slice the Sea Star!');
+        setPrompt('Drag your blade slowly from top to bottom along the dashed line!');
       } else if (id === 'lizard') {
         state = {
           rubProgress: 0, visualRub: 0, eggsLaid: false, layT: 0, warm: 0, hatched: false, wobble: 0, scurryT: 0,
@@ -748,7 +789,7 @@
       const dragId = targetEl ? targetEl.getAttribute('data-drag') : null;
 
       if (currentOrg === 'seastar' && !state.sliced) {
-        dragInfo = { id: 'blade', lastX: p.x, lastY: p.y };
+        dragInfo = { id: 'blade', lastX: p.x, lastY: p.y, startY: p.y };
         state.bladeTrail = [{ x: p.x, y: p.y }];
         exploreStage.setPointerCapture(e.pointerId);
         return;
@@ -816,7 +857,8 @@
             if (Math.hypot(food.x - 335, food.y - 210) < 95) {
               food.used = true;
               state.growth = clamp(state.growth + 0.52);
-              spawnBurst(345, 225, '#34D399', 16);
+              spawnBurst(345, 225, '#F59E0B', 14);
+              spawnBurst(345, 225, '#FDE047', 12);
               if (state.growth >= 1) {
                 state.readyToDetach = true;
                 unlockClue(1, '1 Parent', 'clone');
@@ -827,7 +869,7 @@
           }
         } else if (dragInfo.id === 'hydra-bud' && !state.readyToDetach) {
           state.growth = clamp(state.growth + dist * 0.0034);
-          if (Math.random() < 0.32 && dist > 1.5) spawnBurst(p.x, p.y, '#34D399', 2);
+          if (Math.random() < 0.32 && dist > 1.5) spawnBurst(p.x, p.y, '#FBBF24', 2);
           if (state.growth >= 1) {
             state.readyToDetach = true;
             unlockClue(1, '1 Parent', 'clone');
@@ -846,16 +888,22 @@
       } else if (currentOrg === 'seastar') {
         if (dragInfo.id === 'blade' && !state.sliced) {
           state.bladeTrail.push({ x: p.x, y: p.y });
-          if (state.bladeTrail.length > 14) state.bladeTrail.shift();
-          const nearCenterX = Math.abs(p.x - 440) < 55;
-          const acrossBodyY = p.y > 110 && p.y < 310;
-          if (nearCenterX && acrossBodyY && state.bladeTrail.length >= 4) {
-            state.sliced = true;
-            state.bladeTrail = [];
-            unlockClue(1, '1 Parent', 'clone');
-            setPrompt('Drag a water droplet onto each split piece to regrow arms!');
-            spawnBurst(440, 210, '#F472B6', 22);
-            spawnBurst(440, 210, '#FFFFFF', 12);
+          if (state.bladeTrail.length > 18) state.bladeTrail.shift();
+          const nearCenterX = Math.abs(p.x - 440) < 48;
+          if (nearCenterX && p.y >= 100 && p.y <= 325) {
+            const cutFraction = clamp((p.y - 105) / 205);
+            if (cutFraction > state.sliceProgress) {
+              state.sliceProgress = cutFraction;
+              if (Math.random() < 0.45) spawnBurst(440, p.y, '#38BDF8', 2);
+            }
+            if (state.sliceProgress >= 0.96) {
+              state.sliced = true;
+              state.bladeTrail = [];
+              unlockClue(1, '1 Parent', 'clone');
+              setPrompt('Drag a water droplet onto each split piece to regrow arms!');
+              spawnBurst(440, 210, '#F472B6', 24);
+              spawnBurst(440, 210, '#FFFFFF', 14);
+            }
           }
         } else if (dragInfo.id && dragInfo.id.startsWith('drop-') && state.sliced) {
           const dIdx = Number(dragInfo.id.split('-')[1]);
@@ -972,7 +1020,10 @@
     });
 
     exploreStage.addEventListener('pointerup', () => {
-      if (currentOrg === 'seastar') state.bladeTrail = [];
+      if (currentOrg === 'seastar' && !state.sliced) {
+        state.bladeTrail = [];
+        state.sliceProgress = 0;
+      }
       dragInfo = null;
       updateStageCursor();
     });
@@ -1014,6 +1065,7 @@
           if (state.settleT < 1) state.settleT = clamp(state.settleT + dt * 1.35);
         }
       } else if (currentOrg === 'seastar') {
+        state.visualSlice = damp(state.visualSlice, state.sliceProgress, 14, dt);
         state.droplets.forEach(d => {
           d.x = damp(d.x, d.tx, 12, dt);
           d.y = damp(d.y, d.ty, 12, dt);
@@ -1188,6 +1240,11 @@
               <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45"/>
               <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
             </linearGradient>
+            <radialGradient id="nutrientGrad" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#FEF08A"/>
+              <stop offset="55%" stop-color="#F59E0B"/>
+              <stop offset="100%" stop-color="#EA580C"/>
+            </radialGradient>
           </defs>
           <rect width="880" height="420" fill="url(#waterBg)"/>
           <!-- Sunlit Underwater Caustic Beams -->
@@ -1225,12 +1282,13 @@
           <!-- Parent Hydra -->
           ${drawHydra(335, 340, 1, sway, '#10B981', '#065F46')}
 
-          <!-- Draggable Glowing Nutrient Bubbles -->
+          <!-- Draggable Glowing Orange-to-Yellow Nutrient Bubbles -->
           ${!state.readyToDetach ? state.nutrients.map((n, idx) => n.used ? '' : `
             <g data-drag="hydra-food-${idx}" class="grab-target" transform="translate(${n.x}, ${n.y + Math.sin(time * 3 + n.phase) * 6})">
-              <circle cx="0" cy="0" r="${24 + Math.sin(time * 4 + idx) * 3}" fill="#34D399" fill-opacity="0.25" stroke="#10B981" stroke-width="2.5"/>
-              <circle cx="0" cy="0" r="14" fill="#10B981" stroke="#FFFFFF" stroke-width="2.5"/>
-              <circle cx="-4" cy="-4" r="3.5" fill="#FFFFFF" opacity="0.8"/>
+              <circle cx="0" cy="0" r="${28 + Math.sin(time * 5 + idx) * 4}" fill="#FBBF24" fill-opacity="0.3" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5 3"/>
+              <circle cx="0" cy="0" r="16" fill="url(#nutrientGrad)" stroke="#FFFFFF" stroke-width="2.5"/>
+              <circle cx="-5" cy="-5" r="4" fill="#FFFFFF" opacity="0.85"/>
+              <circle cx="5" cy="4" r="2" fill="#FEF9C3" opacity="0.8"/>
             </g>
           `).join('') : ''}
 
@@ -1286,17 +1344,29 @@
 
           ${!state.sliced ? `
             ${renderCalloutTag(440, 56, '1 Parent Sea Star (2n)', 'neutral')}
-            <g transform="translate(440, 215) rotate(${Math.sin(time * 1.6) * 2.5})">
+            <g transform="translate(440, 215) rotate(${state.visualSlice > 0.02 ? 0 : Math.sin(time * 1.6) * 2.2})">
               <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46 -64,90 -42,16 -102,-32 -27,-32"
                 fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
               <circle cx="-12" cy="-6" r="4" fill="#1E293B"/>
               <circle cx="12" cy="-6" r="4" fill="#1E293B"/>
               <path d="M-9,10 Q0,18 9,10" fill="none" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-              <line x1="0" y1="-116" x2="0" y2="104" stroke="#0F172A" stroke-width="3.5" stroke-dasharray="10 8"/>
+              <!-- Full Top-to-Bottom Cut Guide -->
+              <line x1="0" y1="-116" x2="0" y2="104" stroke="#0F172A" stroke-width="3.5" stroke-dasharray="10 8" opacity="0.55"/>
+              <!-- Live Laser Cut Line Progress -->
+              ${state.visualSlice > 0.01 ? `
+                <line x1="0" y1="-112" x2="0" y2="${lerp(-112, 102, state.visualSlice)}"
+                  stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="0" cy="${lerp(-112, 102, state.visualSlice)}" r="8" fill="#FFFFFF" stroke="#0284C7" stroke-width="3"/>
+              ` : `
+                <!-- Animated Blade Marker at Top -->
+                <g transform="translate(0, ${-116 + Math.sin(time * 4) * 5})">
+                  <polygon points="-8,-10 8,-10 0,6" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
+                </g>
+              `}
             </g>
             ${state.bladeTrail.length > 1 ? `
               <polyline points="${state.bladeTrail.map(pt => `${pt.x},${pt.y}`).join(' ')}"
-                fill="none" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+                fill="none" stroke="#38BDF8" stroke-width="5" stroke-linecap="round" opacity="0.6"/>
             ` : ''}
           ` : `
             ${renderCalloutTag(leftX, 68, state.leftRegen >= 1 ? 'Clone #1 (2n)' : 'Split Piece #1', state.leftRegen >= 1 ? 'clone' : 'warn')}
@@ -1777,8 +1847,8 @@
     // MODE 2: SURVIVAL LAB (COLONY A CLONES VS COLONY B MIX)
     // =========================================================
     const DOME_SPOTS = [
-      { x: 155, y: 185 }, { x: 245, y: 175 }, { x: 325, y: 190 }, { x: 140, y: 255 },
-      { x: 220, y: 245 }, { x: 300, y: 255 }, { x: 180, y: 310 }, { x: 275, y: 310 }
+      { x: 155, y: 155 }, { x: 245, y: 145 }, { x: 325, y: 160 }, { x: 140, y: 215 },
+      { x: 220, y: 205 }, { x: 300, y: 215 }, { x: 180, y: 260 }, { x: 275, y: 260 }
     ];
 
     const SEXUAL_TRAITS = [
@@ -1886,21 +1956,21 @@
       const hazardEmoji = hazardEffect.type === 'heatwave' ? '🔥' : '🦠';
 
       svg.innerHTML = `
-        <rect width="880" height="390" fill="#F8FAFC"/>
+        <rect width="880" height="330" fill="#F8FAFC"/>
 
         <!-- Left Habitat Dome: Asexual Clones -->
         <g>
-          <path d="M65,340 A165,240 0 0,1 395,340 Z" fill="#ECFDF5" stroke="#10B981" stroke-width="3.5"/>
-          <rect x="65" y="335" width="330" height="16" rx="8" fill="#059669"/>
-          <text x="230" y="68" text-anchor="middle" font-size="16" font-weight="900" fill="#065F46">👯 Asexual Clones (Same DNA)</text>
+          <path d="M65,288 A165,205 0 0,1 395,288 Z" fill="#ECFDF5" stroke="#10B981" stroke-width="3.5"/>
+          <rect x="65" y="283" width="330" height="14" rx="7" fill="#059669"/>
+          <text x="230" y="52" text-anchor="middle" font-size="16" font-weight="900" fill="#065F46">👯 Asexual Clones (Same DNA)</text>
           ${asexColony.map(o => drawStar(o, 0)).join('')}
         </g>
 
         <!-- Right Habitat Dome: Sexual Diverse -->
         <g>
-          <path d="M485,340 A165,240 0 0,1 815,340 Z" fill="#EEF2FF" stroke="#6366F1" stroke-width="3.5"/>
-          <rect x="485" y="335" width="330" height="16" rx="8" fill="#4F46E5"/>
-          <text x="650" y="68" text-anchor="middle" font-size="16" font-weight="900" fill="#3730A3">🌈 Sexual Mix (Unique Traits)</text>
+          <path d="M485,288 A165,205 0 0,1 815,288 Z" fill="#EEF2FF" stroke="#6366F1" stroke-width="3.5"/>
+          <rect x="485" y="283" width="330" height="14" rx="7" fill="#4F46E5"/>
+          <text x="650" y="52" text-anchor="middle" font-size="16" font-weight="900" fill="#3730A3">🌈 Sexual Mix (Unique Traits)</text>
           ${sexColony.map(o => drawStar(o, 420)).join('')}
         </g>
 
@@ -1908,7 +1978,7 @@
         ${hazardEffect.alpha > 0 ? `
           <g opacity="${hazardEffect.alpha}">
             ${[135, 230, 315, 555, 650, 740].map((gx, idx) => `
-              <text x="${gx}" y="${165 + (idx % 2) * 85 + Math.sin(time * 12 + idx) * 6}" text-anchor="middle" font-size="38">${hazardEmoji}</text>
+              <text x="${gx}" y="${140 + (idx % 2) * 75 + Math.sin(time * 12 + idx) * 6}" text-anchor="middle" font-size="36">${hazardEmoji}</text>
             `).join('')}
           </g>
         ` : ''}
