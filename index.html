@@ -1180,33 +1180,129 @@
       `).join('');
       const contactHalo = pointerPos.active && (hoveredTarget || dragInfo) ? `
         <g transform="translate(${pointerPos.x}, ${pointerPos.y})" pointer-events="none">
-          <circle cx="0" cy="0" r="${dragInfo ? 22 + Math.sin(time * 12) * 3 : 18 + Math.sin(time * 7) * 3}"
-            fill="${dragInfo ? '#10B981' : '#FBBF24'}" fill-opacity="${dragInfo ? 0.25 : 0.22}"
-            stroke="${dragInfo ? '#059669' : '#F59E0B'}" stroke-width="2" stroke-dasharray="4 3"/>
+          <circle cx="0" cy="0" r="${22 + Math.sin(time * 8) * 3}" fill="none" stroke="${dragInfo ? '#10B981' : '#F59E0B'}" stroke-width="2.5" stroke-dasharray="5 4" opacity="0.85"/>
         </g>
       ` : '';
       return particles + contactHalo;
     }
 
-    function drawHydra(x, y, scale, sway, color, stroke) {
+    function drawHydra(x, y, scale, sway, color, stroke, tentacleGrowth = 1) {
       const blink = Math.sin(time * 1.9) > 0.96 ? 0.2 : 1;
       const breathe = 1 + Math.sin(time * 3.1) * 0.025;
+      const tWave1 = Math.sin(time * 2.8) * 7;
+      const tWave2 = Math.cos(time * 2.4) * 6;
+      const tg = clamp(tentacleGrowth);
       return `
         <g transform="translate(${x}, ${y}) scale(${scale * breathe}, ${scale / breathe})">
-          <path d="M-15,0 Q${-18 + sway * 0.4},-85 ${-11 + sway},-165 L${11 + sway},-165 Q${18 + sway * 0.4},-85 15,0 Z"
+          <!-- Basal Pedal Disc anchored to rock -->
+          <ellipse cx="0" cy="0" rx="25" ry="8.5" fill="${stroke}" opacity="0.65"/>
+          <path d="M-22,0 Q-17,-14 -14,-24 L14,-24 Q17,-14 22,0 Z" fill="${color}" stroke="${stroke}" stroke-width="2.5"/>
+          <!-- Translucent Gastric Column with Ectoderm/Endoderm Shading -->
+          <path d="M-17,-12 Q${-20 + sway * 0.4},-88 ${-11 + sway},-165 L${11 + sway},-165 Q${20 + sway * 0.4},-88 17,-12 Z"
             fill="${color}" stroke="${stroke}" stroke-width="3.2"/>
-          <path d="M${-9 + sway},-165 Q${-42 + sway * 1.4},-208 ${-62 + sway * 1.5},-190" fill="none" stroke="${color}" stroke-width="5.5" stroke-linecap="round"/>
-          <path d="M${-3 + sway},-165 Q${-22 + sway * 1.3},-226 ${-12 + sway * 1.4},-238" fill="none" stroke="${color}" stroke-width="5.5" stroke-linecap="round"/>
-          <path d="M${3 + sway},-165 Q${22 + sway * 1.3},-226 ${12 + sway * 1.4},-238" fill="none" stroke="${color}" stroke-width="5.5" stroke-linecap="round"/>
-          <path d="M${9 + sway},-165 Q${42 + sway * 1.4},-208 ${62 + sway * 1.5},-190" fill="none" stroke="${color}" stroke-width="5.5" stroke-linecap="round"/>
-          <ellipse cx="${-4 + sway}" cy="-150" rx="2.8" ry="${2.8 * blink}" fill="#1E293B"/>
-          <ellipse cx="${4 + sway}" cy="-150" rx="2.8" ry="${2.8 * blink}" fill="#1E293B"/>
+          <path d="M-11,-16 Q${-13 + sway * 0.4},-88 ${-6 + sway},-162 L${-2 + sway},-162 Q${-7 + sway * 0.4},-88 -6,-16 Z"
+            fill="#ECFDF5" opacity="0.28"/>
+          <path d="M-5,-20 Q${-7 + sway * 0.4},-88 ${-3 + sway},-156 L${3 + sway},-156 Q${7 + sway * 0.4},-88 5,-20 Z"
+            fill="#A7F3D0" opacity="0.52"/>
+          <!-- Hypostome Mouth Cone -->
+          <path d="M${-9 + sway},-165 Q${sway},-182 ${9 + sway},-165 Z" fill="${stroke}"/>
+          <!-- 6 Flowing Cnidocyte-Dotted Tentacles (Emerges smoothly during budding) -->
+          ${tg > 0.05 ? `
+            <g transform="translate(${sway}, -165) scale(${tg}) translate(${-sway}, 165)">
+              <path d="M${-10 + sway},-165 Q${-48 + sway * 1.4},-206 ${-70 + sway * 1.5 + tWave1},-180" fill="none" stroke="${color}" stroke-width="5.2" stroke-linecap="round"/>
+              <path d="M${-6 + sway},-165 Q${-32 + sway * 1.3},-224 ${-40 + sway * 1.4 - tWave2},-236" fill="none" stroke="${color}" stroke-width="4.6" stroke-linecap="round"/>
+              <path d="M${-2 + sway},-165 Q${-14 + sway * 1.3},-232 ${-8 + sway * 1.4 + tWave2},-246" fill="none" stroke="${color}" stroke-width="4.6" stroke-linecap="round"/>
+              <path d="M${2 + sway},-165 Q${14 + sway * 1.3},-232 ${8 + sway * 1.4 - tWave2},-246" fill="none" stroke="${color}" stroke-width="4.6" stroke-linecap="round"/>
+              <path d="M${6 + sway},-165 Q${32 + sway * 1.3},-224 ${40 + sway * 1.4 + tWave2},-236" fill="none" stroke="${color}" stroke-width="4.6" stroke-linecap="round"/>
+              <path d="M${10 + sway},-165 Q${48 + sway * 1.4},-206 ${70 + sway * 1.5 - tWave1},-180" fill="none" stroke="${color}" stroke-width="5.2" stroke-linecap="round"/>
+              <!-- Nematocyst stinging cell nodules along tentacles -->
+              <circle cx="${-46 + sway * 1.4}" cy="-196" r="2.6" fill="#ECFDF5"/>
+              <circle cx="${-62 + sway * 1.5 + tWave1 * 0.8}" cy="-185" r="2.1" fill="#ECFDF5"/>
+              <circle cx="${-24 + sway * 1.3}" cy="-214" r="2.3" fill="#ECFDF5"/>
+              <circle cx="${24 + sway * 1.3}" cy="-214" r="2.3" fill="#ECFDF5"/>
+              <circle cx="${46 + sway * 1.4}" cy="-196" r="2.6" fill="#ECFDF5"/>
+              <circle cx="${62 + sway * 1.5 - tWave1 * 0.8}" cy="-185" r="2.1" fill="#ECFDF5"/>
+            </g>
+          ` : ''}
+          <!-- Subtle Light-Sensitive Ocelli -->
+          <ellipse cx="${-4 + sway}" cy="-152" rx="2.5" ry="${2.5 * blink}" fill="#064E3B"/>
+          <ellipse cx="${4 + sway}" cy="-152" rx="2.5" ry="${2.5 * blink}" fill="#064E3B"/>
+        </g>
+      `;
+    }
+
+    function drawRealisticLizard(x, y, scale, phase, bodyFill, stripeFill, strokeFill) {
+      const wave1 = Math.sin(phase) * 7;
+      const wave2 = Math.cos(phase) * 9;
+      const wave3 = Math.sin(phase - 1.1) * 12;
+      const breath = 1 + Math.sin(phase * 1.4) * 0.03;
+      const blink = Math.sin(phase * 0.65) > 0.96 ? 0.15 : 1;
+      const legStride = Math.sin(phase) * 4;
+      const tongueOut = Math.sin(phase * 0.5) > 0.88 ? Math.sin((Math.sin(phase * 0.5) - 0.88) * 26) : 0;
+      return `
+        <g transform="translate(${x}, ${y}) scale(${scale})">
+          <!-- Ground Contact Shadow -->
+          <ellipse cx="-8" cy="48" rx="115" ry="11" fill="#78350F" opacity="0.22"/>
+
+          <!-- Far-side Legs (Fore & Hind with clawed toes) -->
+          <path d="M-24,22 L-36,38 L-46,44 M-36,38 L-30,45" fill="none" stroke="#064E3B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M44,20 L54,36 L65,42 M54,36 L48,43" fill="none" stroke="#064E3B" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <!-- Long Whip-like S-Curve Tail -->
+          <path d="M-46,16 C-88,${16 + wave1} -132,${30 - wave2} -185,${22 + wave3}"
+            fill="none" stroke="${strokeFill}" stroke-width="11" stroke-linecap="round"/>
+          <path d="M-46,16 C-88,${16 + wave1} -132,${30 - wave2} -185,${22 + wave3}"
+            fill="none" stroke="${bodyFill}" stroke-width="7.5" stroke-linecap="round"/>
+          <path d="M-46,15 C-88,${15 + wave1} -132,${29 - wave2} -175,${21 + wave3}"
+            fill="none" stroke="${stripeFill}" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+
+          <!-- Sleek Fusiform Reptile Torso with Throat & Belly Shading -->
+          <g transform="scale(1, ${breath})">
+            <path d="M-52,16 C-38,-4 24,-6 62,10 C68,18 64,28 52,30 C16,35 -34,32 -52,16 Z"
+              fill="${bodyFill}" stroke="${strokeFill}" stroke-width="3" stroke-linejoin="round"/>
+            <!-- Pale Cream Ventral Belly -->
+            <path d="M-42,22 C-16,32 24,33 52,27 C28,26 -14,25 -42,22 Z" fill="#FEF9C3" opacity="0.85"/>
+            <!-- Characteristic Whiptail Longitudinal Dorsal Stripes & Spots -->
+            <path d="M-42,10 Q4,2 54,12" fill="none" stroke="${stripeFill}" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M-45,16 Q4,10 56,18" fill="none" stroke="${stripeFill}" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+            <circle cx="-18" cy="14" r="2.2" fill="#FEF08A" opacity="0.8"/>
+            <circle cx="4" cy="13" r="2.4" fill="#FEF08A" opacity="0.8"/>
+            <circle cx="26" cy="15" r="2.1" fill="#FEF08A" opacity="0.8"/>
+          </g>
+
+          <!-- Pointed Anatomical Reptile Head, Forked Tongue & Golden Iris Eye -->
+          <g transform="translate(62, ${12 + Math.sin(phase * 0.9) * 1.8})">
+            ${tongueOut > 0.05 ? `
+              <path d="M40,3 L${42 + tongueOut * 14},${2 + Math.sin(phase * 14) * 2} L${47 + tongueOut * 16},${-1} M${42 + tongueOut * 14},${2 + Math.sin(phase * 14) * 2} L${47 + tongueOut * 16},${5}"
+                fill="none" stroke="#F43F5E" stroke-width="1.8" stroke-linecap="round"/>
+            ` : ''}
+            <path d="M-6,-6 C12,-12 32,-6 44,2 C34,10 14,14 -4,11 Z"
+              fill="${bodyFill}" stroke="${strokeFill}" stroke-width="2.8" stroke-linejoin="round"/>
+            <!-- Jawline & Nostril -->
+            <path d="M4,6 Q24,6 42,2" fill="none" stroke="${strokeFill}" stroke-width="1.6" opacity="0.75"/>
+            <circle cx="35" cy="-1" r="1.4" fill="${strokeFill}"/>
+            <!-- Ear Tympanum & Detailed Reptile Eye with Golden Iris -->
+            <ellipse cx="2" cy="2" rx="3" ry="4" fill="${strokeFill}" opacity="0.4"/>
+            <circle cx="16" cy="-2" r="4.5" fill="#F59E0B" stroke="${strokeFill}" stroke-width="1.5"/>
+            <ellipse cx="16" cy="-2" rx="1.6" ry="${3.4 * blink}" fill="#042F2E"/>
+            <circle cx="17" cy="-3.2" r="1" fill="#FFFFFF"/>
+          </g>
+
+          <!-- Near-side Muscular Hind & Fore Limbs with Articulated Toes -->
+          <g transform="translate(${-28 + legStride * 0.5}, 20)">
+            <path d="M0,0 L-14,14 L-4,26" fill="none" stroke="${strokeFill}" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M-4,26 L-14,29 M-4,26 L-4,31 M-4,26 L6,29" fill="none" stroke="${strokeFill}" stroke-width="2.6" stroke-linecap="round"/>
+          </g>
+          <g transform="translate(${40 - legStride * 0.5}, 20)">
+            <path d="M0,0 L12,13 L18,26" fill="none" stroke="${strokeFill}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18,26 L10,29 M18,26 L20,31 M18,26 L27,28" fill="none" stroke="${strokeFill}" stroke-width="2.4" stroke-linecap="round"/>
+          </g>
         </g>
       `;
     }
 
     // =========================================================
-    // RICH STAGE RENDERER FOR ALL 6 ORGANISMS (NO CLUTTER)
+    // RICH STAGE RENDERER FOR ALL 6 ORGANISMS (GRAND SCENES)
     // =========================================================
     function renderExploreStage() {
       const svg = exploreStage;
@@ -1232,63 +1328,71 @@
         svg.innerHTML = `
           <defs>
             <linearGradient id="waterBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#E0F2FE"/>
-              <stop offset="65%" stop-color="#BAE6FD"/>
-              <stop offset="100%" stop-color="#7DD3FC"/>
+              <stop offset="0%" stop-color="#CFFAFE"/>
+              <stop offset="45%" stop-color="#BAE6FD"/>
+              <stop offset="100%" stop-color="#38BDF8"/>
             </linearGradient>
             <linearGradient id="sunShaft" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
               <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
             </linearGradient>
             <radialGradient id="nutrientGrad" cx="35%" cy="35%" r="65%">
-              <stop offset="0%" stop-color="#FEF08A"/>
-              <stop offset="55%" stop-color="#F59E0B"/>
+              <stop offset="0%" stop-color="#FEF9C3"/>
+              <stop offset="45%" stop-color="#F59E0B"/>
               <stop offset="100%" stop-color="#EA580C"/>
             </radialGradient>
           </defs>
           <rect width="880" height="420" fill="url(#waterBg)"/>
-          <!-- Sunlit Underwater Caustic Beams -->
-          <polygon points="120,0 240,0 320,350 60,350" fill="url(#sunShaft)"/>
-          <polygon points="540,0 680,0 780,350 480,350" fill="url(#sunShaft)"/>
+          <!-- Shimmering Surface Ripples & Sunlit Caustic Beams -->
+          <path d="M0,18 Q110,${10 + Math.sin(time * 2) * 5} 220,18 T440,18 T660,18 T880,18 L880,0 L0,0 Z" fill="#FFFFFF" opacity="0.5"/>
+          <polygon points="100,0 250,0 340,360 40,360" fill="url(#sunShaft)"/>
+          <polygon points="520,0 690,0 800,360 460,360" fill="url(#sunShaft)"/>
 
-          <!-- Swaying Pond Kelp Background -->
-          <path d="M90,360 Q${72 + sway * 1.6},285 ${96 - sway},220 Q${115 + sway},165 88,125" fill="none" stroke="#34D399" stroke-width="9" stroke-linecap="round" opacity="0.45"/>
-          <path d="M775,360 Q${795 - sway * 1.5},280 ${765 + sway},210 Q${745 - sway},155 780,115" fill="none" stroke="#10B981" stroke-width="10" stroke-linecap="round" opacity="0.4"/>
-          <path d="M810,360 Q${825 + sway * 1.3},305 ${805 - sway},255" fill="none" stroke="#059669" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+          <!-- Distant Underwater Rock Ridges & Lily Pad Shadows -->
+          <path d="M0,310 Q140,245 290,305 T600,295 T880,315 L880,420 L0,420 Z" fill="#0284C7" fill-opacity="0.16"/>
+          <ellipse cx="185" cy="14" rx="55" ry="7" fill="#059669" opacity="0.35"/>
+          <ellipse cx="685" cy="12" rx="68" ry="8" fill="#047857" opacity="0.3"/>
 
-          <!-- Layered Pond Floor & Smooth Pebbles -->
-          <path d="M0,335 Q220,318 440,335 T880,335 L880,420 L0,420 Z" fill="#0284C7" fill-opacity="0.22"/>
-          <path d="M0,352 Q260,336 520,352 T880,348 L880,420 L0,420 Z" fill="#0369A1" fill-opacity="0.25"/>
-          <ellipse cx="265" cy="356" rx="34" ry="12" fill="#94A3B8" opacity="0.5"/>
-          <ellipse cx="620" cy="360" rx="42" ry="14" fill="#64748B" opacity="0.45"/>
-          <ellipse cx="450" cy="366" rx="26" ry="9" fill="#94A3B8" opacity="0.4"/>
+          <!-- Swaying Pond Kelp Forest -->
+          <path d="M72,360 Q${54 + sway * 1.6},285 ${78 - sway},215 Q${96 + sway},155 70,115" fill="none" stroke="#10B981" stroke-width="10" stroke-linecap="round" opacity="0.45"/>
+          <path d="M112,365 Q${126 - sway * 1.4},300 ${106 + sway},240" fill="none" stroke="#34D399" stroke-width="7" stroke-linecap="round" opacity="0.4"/>
+          <path d="M775,360 Q${795 - sway * 1.5},280 ${765 + sway},205 Q${745 - sway},145 780,105" fill="none" stroke="#059669" stroke-width="11" stroke-linecap="round" opacity="0.42"/>
+          <path d="M815,360 Q${830 + sway * 1.3},305 ${810 - sway},250" fill="none" stroke="#34D399" stroke-width="8" stroke-linecap="round" opacity="0.38"/>
 
-          <!-- Animated Background Pond Fish -->
-          <g transform="translate(${fishX1}, 95)" opacity="0.45">
-            <ellipse cx="0" cy="0" rx="16" ry="8" fill="#0284C7"/>
-            <polygon points="-14,0 -24,-7 -24,7" fill="#0284C7"/>
+          <!-- Layered Pond Floor & Smooth River Stones -->
+          <path d="M0,335 Q220,318 440,335 T880,335 L880,420 L0,420 Z" fill="#0284C7" fill-opacity="0.28"/>
+          <path d="M0,352 Q260,336 520,352 T880,348 L880,420 L0,420 Z" fill="#0369A1" fill-opacity="0.32"/>
+          <ellipse cx="265" cy="356" rx="38" ry="13" fill="#64748B" opacity="0.55"/>
+          <ellipse cx="620" cy="360" rx="46" ry="15" fill="#475569" opacity="0.5"/>
+          <ellipse cx="450" cy="368" rx="28" ry="10" fill="#94A3B8" opacity="0.45"/>
+
+          <!-- Animated Background Pond Fish with Tail Wag -->
+          <g transform="translate(${fishX1}, ${95 + Math.sin(time * 2.5) * 6})" opacity="0.5">
+            <ellipse cx="0" cy="0" rx="17" ry="8.5" fill="#0284C7"/>
+            <polygon points="-14,0 -25,${-7 + Math.sin(time * 12) * 3} -25,${7 + Math.sin(time * 12) * 3}" fill="#0284C7"/>
+            <circle cx="9" cy="-2" r="1.8" fill="#FFFFFF"/>
           </g>
-          <g transform="translate(${fishX2}, 145) scale(-1,1)" opacity="0.35">
-            <ellipse cx="0" cy="0" rx="13" ry="6" fill="#0369A1"/>
-            <polygon points="-11,0 -19,-6 -19,6" fill="#0369A1"/>
+          <g transform="translate(${fishX2}, ${148 + Math.cos(time * 2.2) * 6}) scale(-1,1)" opacity="0.4">
+            <ellipse cx="0" cy="0" rx="14" ry="6.5" fill="#0369A1"/>
+            <polygon points="-11,0 -20,${-6 + Math.cos(time * 12) * 3} -20,${6 + Math.cos(time * 12) * 3}" fill="#0369A1"/>
           </g>
-          ${ambient.slice(0, 7).map((b, idx) => `
-            <circle cx="${b.x}" cy="${((b.y - time * (24 + idx * 3)) % 360 + 360) % 360}" r="${b.r}"
-              fill="#FFFFFF" fill-opacity="0.55" stroke="#38BDF8" stroke-width="1"/>
+          ${ambient.slice(0, 8).map((b, idx) => `
+            <circle cx="${b.x + Math.sin(time * 2 + idx) * 6}" cy="${((b.y - time * (24 + idx * 3)) % 360 + 360) % 360}" r="${b.r}"
+              fill="#FFFFFF" fill-opacity="0.65" stroke="#0284C7" stroke-width="1"/>
           `).join('')}
 
           ${renderCalloutTag(335, 58, '1 Parent Hydra (2n)', 'neutral')}
 
           <!-- Parent Hydra -->
-          ${drawHydra(335, 340, 1, sway, '#10B981', '#065F46')}
+          ${drawHydra(335, 340, 1, sway, '#10B981', '#065F46', 1)}
 
           <!-- Draggable Glowing Orange-to-Yellow Nutrient Bubbles -->
           ${!state.readyToDetach ? state.nutrients.map((n, idx) => n.used ? '' : `
             <g data-drag="hydra-food-${idx}" class="grab-target" transform="translate(${n.x}, ${n.y + Math.sin(time * 3 + n.phase) * 6})">
-              <circle cx="0" cy="0" r="${28 + Math.sin(time * 5 + idx) * 4}" fill="#FBBF24" fill-opacity="0.3" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5 3"/>
-              <circle cx="0" cy="0" r="16" fill="url(#nutrientGrad)" stroke="#FFFFFF" stroke-width="2.5"/>
-              <circle cx="-5" cy="-5" r="4" fill="#FFFFFF" opacity="0.85"/>
-              <circle cx="5" cy="4" r="2" fill="#FEF9C3" opacity="0.8"/>
+              <circle cx="0" cy="0" r="${30 + Math.sin(time * 5 + idx) * 4}" fill="#FBBF24" fill-opacity="0.34" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5 3"/>
+              <circle cx="0" cy="0" r="17" fill="url(#nutrientGrad)" stroke="#FFFFFF" stroke-width="2.5"/>
+              <circle cx="-5" cy="-5" r="4.5" fill="#FFFFFF" opacity="0.9"/>
+              <circle cx="5" cy="4" r="2.2" fill="#FEF9C3" opacity="0.85"/>
             </g>
           `).join('') : ''}
 
@@ -1298,11 +1402,11 @@
               fill="none" stroke="#34D399" stroke-width="${lerp(11, 3, state.stretch)}" stroke-linecap="round"/>
           ` : ''}
 
-          <!-- Interactive Bud / Detached Offspring -->
+          <!-- Interactive Bud / Detached Offspring (Starts as small cellular mound, sprouts tentacles as it grows!) -->
           <g data-drag="${state.detached ? '' : 'hydra-bud'}" class="${state.detached ? '' : 'grab-target'}"
              transform="translate(${bx}, ${by + bobBud}) rotate(${budAngle})">
             <circle cx="0" cy="-35" r="46" fill="#10B981" fill-opacity="0"/>
-            ${drawHydra(0, 0, budScale, sway * 0.7, '#34D399', '#065F46')}
+            ${drawHydra(0, 0, budScale, sway * 0.7, '#34D399', '#065F46', clamp((state.visualGrowth - 0.35) / 0.65))}
             ${!state.readyToDetach && state.visualGrowth > 0 ? renderProgressRing(0, -34, 34, state.visualGrowth, '#10B981') : ''}
           </g>
 
@@ -1322,34 +1426,71 @@
         const rightX = 440 + splitOffset;
         const bobL = Math.sin(time * 2.3) * 3.5;
         const bobR = Math.cos(time * 2.3) * 3.5;
+        const starOuterPts = "0,-108 15,-64 28,-34 66,-36 105,-32 74,-6 44,17 56,56 66,93 32,70 0,48 -32,70 -66,93 -56,56 -44,17 -74,-6 -105,-32 -66,-36 -28,-34 -15,-64";
 
         svg.innerHTML = `
           <defs>
             <linearGradient id="reefBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#E0F2FE"/>
-              <stop offset="55%" stop-color="#FCE7F3"/>
+              <stop offset="0%" stop-color="#BAE6FD"/>
+              <stop offset="48%" stop-color="#FCE7F3"/>
               <stop offset="100%" stop-color="#FDE68A"/>
             </linearGradient>
+            <linearGradient id="reefLight" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.48"/>
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+            </linearGradient>
+            <radialGradient id="starBodyGrad" cx="42%" cy="38%" r="62%">
+              <stop offset="0%" stop-color="#F9A8D4"/>
+              <stop offset="55%" stop-color="#F472B6"/>
+              <stop offset="100%" stop-color="#DB2777"/>
+            </radialGradient>
+            <radialGradient id="starRegenGrad" cx="42%" cy="38%" r="62%">
+              <stop offset="0%" stop-color="#FCE7F3"/>
+              <stop offset="65%" stop-color="#FBCFE8"/>
+              <stop offset="100%" stop-color="#F472B6"/>
+            </radialGradient>
           </defs>
           <rect width="880" height="420" fill="url(#reefBg)"/>
-          <!-- Coral Reef Silhouettes & Swaying Sea Anemones -->
-          <path d="M55,365 L55,275 Q40,255 58,240 Q72,255 68,275 L76,255 Q92,240 96,262 L85,295 L85,365 Z" fill="#F472B6" opacity="0.32"/>
-          <path d="M800,365 L800,265 Q785,245 804,232 Q818,248 814,268 L825,248 Q842,235 844,258 L832,292 L832,365 Z" fill="#FB7185" opacity="0.32"/>
-          <path d="M0,340 Q220,322 440,340 T880,340 L880,420 L0,420 Z" fill="#FCD34D" fill-opacity="0.45"/>
-          <ellipse cx="440" cy="368" rx="410" ry="32" fill="#F59E0B" fill-opacity="0.22"/>
-          ${ambient.slice(0, 6).map((b, idx) => `
+          <polygon points="180,0 320,0 410,350 110,350" fill="url(#reefLight)"/>
+          <polygon points="560,0 710,0 790,350 490,350" fill="url(#reefLight)"/>
+
+          <!-- Grand Coral Reef Silhouettes, Starfish Shells & Swaying Sea Anemones -->
+          <path d="M55,365 L55,270 Q38,248 58,232 Q74,248 68,270 L78,248 Q95,232 98,258 L85,295 L85,365 Z" fill="#F472B6" opacity="0.38"/>
+          <path d="M135,360 Q125,315 142,285 Q155,315 148,360 Z" fill="#FB7185" opacity="0.35"/>
+          <path d="M800,365 L800,260 Q784,238 805,224 Q820,242 814,264 L827,242 Q845,228 846,254 L832,292 L832,365 Z" fill="#FB7185" opacity="0.38"/>
+          <path d="M0,340 Q220,322 440,340 T880,340 L880,420 L0,420 Z" fill="#FCD34D" fill-opacity="0.5"/>
+          <ellipse cx="440" cy="368" rx="410" ry="32" fill="#F59E0B" fill-opacity="0.26"/>
+          <!-- Scallop Shell & Reef Pebbles on Sand -->
+          <path d="M175,356 A16,14 0 0,1 207,356 Z" fill="#FDA4AF" stroke="#BE185D" stroke-width="1.5" opacity="0.7"/>
+          <path d="M685,358 A18,15 0 0,1 721,358 Z" fill="#FDE047" stroke="#D97706" stroke-width="1.5" opacity="0.7"/>
+          ${ambient.slice(0, 7).map((b, idx) => `
             <circle cx="${b.x}" cy="${((b.y - time * (18 + idx * 2)) % 340 + 340) % 340}" r="${b.r}"
-              fill="#FFFFFF" fill-opacity="0.6" stroke="#F472B6" stroke-width="1"/>
+              fill="#FFFFFF" fill-opacity="0.65" stroke="#F472B6" stroke-width="1"/>
           `).join('')}
 
           ${!state.sliced ? `
             ${renderCalloutTag(440, 56, '1 Parent Sea Star (2n)', 'neutral')}
             <g transform="translate(440, 215) rotate(${state.visualSlice > 0.02 ? 0 : Math.sin(time * 1.6) * 2.2})">
-              <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46 -64,90 -42,16 -102,-32 -27,-32"
-                fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
-              <circle cx="-12" cy="-6" r="4" fill="#1E293B"/>
-              <circle cx="12" cy="-6" r="4" fill="#1E293B"/>
-              <path d="M-9,10 Q0,18 9,10" fill="none" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
+              <!-- Ground Shadow -->
+              <ellipse cx="0" cy="18" rx="95" ry="78" fill="#BE185D" opacity="0.14"/>
+              <!-- Organic 5-Arm Sea Star Body -->
+              <polygon points="${starOuterPts}"
+                fill="url(#starBodyGrad)" stroke="#9D174D" stroke-width="4" stroke-linejoin="round"/>
+              <!-- Realistic Carinal Ossicle Ridges & Dorsal Papulae Tubercles -->
+              <line x1="0" y1="-12" x2="0" y2="-92" stroke="#FCE7F3" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+              <line x1="12" y1="-4" x2="88" y2="-27" stroke="#FCE7F3" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+              <line x1="8" y1="10" x2="54" y2="77" stroke="#FCE7F3" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+              <line x1="-8" y1="10" x2="-54" y2="77" stroke="#FCE7F3" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+              <line x1="-12" y1="-4" x2="-88" y2="-27" stroke="#FCE7F3" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+              <!-- Ossicle Spine Dots along Arms -->
+              <circle cx="0" cy="-42" r="2.8" fill="#FFF1F2"/><circle cx="0" cy="-64" r="2.4" fill="#FFF1F2"/>
+              <circle cx="38" cy="-12" r="2.8" fill="#FFF1F2"/><circle cx="62" cy="-20" r="2.4" fill="#FFF1F2"/>
+              <circle cx="-38" cy="-12" r="2.8" fill="#FFF1F2"/><circle cx="-62" cy="-20" r="2.4" fill="#FFF1F2"/>
+              <circle cx="24" cy="34" r="2.8" fill="#FFF1F2"/><circle cx="38" cy="54" r="2.4" fill="#FFF1F2"/>
+              <circle cx="-24" cy="34" r="2.8" fill="#FFF1F2"/><circle cx="-38" cy="54" r="2.4" fill="#FFF1F2"/>
+              <!-- Central Disc & Calcareous Madreporite -->
+              <circle cx="0" cy="0" r="18" fill="#EC4899" stroke="#FCE7F3" stroke-width="2" stroke-dasharray="3 3"/>
+              <circle cx="7" cy="-7" r="4.5" fill="#FEF08A" stroke="#CA8A04" stroke-width="1"/>
               <!-- Full Top-to-Bottom Cut Guide -->
               <line x1="0" y1="-116" x2="0" y2="104" stroke="#0F172A" stroke-width="3.5" stroke-dasharray="10 8" opacity="0.55"/>
               <!-- Live Laser Cut Line Progress -->
@@ -1358,7 +1499,6 @@
                   stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
                 <circle cx="0" cy="${lerp(-112, 102, state.visualSlice)}" r="8" fill="#FFFFFF" stroke="#0284C7" stroke-width="3"/>
               ` : `
-                <!-- Animated Blade Marker at Top -->
                 <g transform="translate(0, ${-116 + Math.sin(time * 4) * 5})">
                   <polygon points="-8,-10 8,-10 0,6" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
                 </g>
@@ -1372,32 +1512,44 @@
             ${renderCalloutTag(leftX, 68, state.leftRegen >= 1 ? 'Clone #1 (2n)' : 'Split Piece #1', state.leftRegen >= 1 ? 'clone' : 'warn')}
             ${renderCalloutTag(rightX, 68, state.rightRegen >= 1 ? 'Clone #2 (2n)' : 'Split Piece #2', state.rightRegen >= 1 ? 'clone' : 'warn')}
 
-            <!-- Left Split Piece + Regrowing Right Arms -->
+            <!-- Left Split Piece + Blastema & Regrowing Right Arms -->
             <g transform="translate(${leftX}, ${215 + bobL})">
-              <polygon points="0,-105 0,46 -64,90 -42,16 -102,-32 -27,-32"
-                fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
+              <polygon points="0,-108 0,48 -32,70 -66,93 -56,56 -44,17 -74,-6 -105,-32 -66,-36 -28,-34 -15,-64"
+                fill="url(#starBodyGrad)" stroke="#9D174D" stroke-width="4" stroke-linejoin="round"/>
+              <line x1="-8" y1="10" x2="-54" y2="77" stroke="#FCE7F3" stroke-width="2.8" stroke-linecap="round" opacity="0.8"/>
+              <line x1="-12" y1="-4" x2="-88" y2="-27" stroke="#FCE7F3" stroke-width="2.8" stroke-linecap="round" opacity="0.8"/>
               ${state.leftRegen > 0 ? `
                 <g transform="scale(${easeOutBack(state.leftRegen)}, 1)">
-                  <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46"
-                    fill="#F9A8D4" stroke="#BE185D" stroke-width="3.5" stroke-dasharray="${state.leftRegen >= 1 ? 'none' : '6 4'}" stroke-linejoin="round"/>
+                  <polygon points="0,-108 15,-64 28,-34 66,-36 105,-32 74,-6 44,17 56,56 66,93 32,70 0,48"
+                    fill="${state.leftRegen >= 1 ? 'url(#starBodyGrad)' : 'url(#starRegenGrad)'}" stroke="#9D174D" stroke-width="3.5" stroke-dasharray="${state.leftRegen >= 1 ? 'none' : '6 4'}" stroke-linejoin="round"/>
+                  <line x1="12" y1="-4" x2="88" y2="-27" stroke="#FCE7F3" stroke-width="2.6" stroke-linecap="round" opacity="0.8"/>
+                  <line x1="8" y1="10" x2="54" y2="77" stroke="#FCE7F3" stroke-width="2.6" stroke-linecap="round" opacity="0.8"/>
                 </g>
-              ` : ''}
-              <circle cx="-12" cy="-6" r="4" fill="#1E293B"/>
-              ${state.leftRegen >= 1 ? `<circle cx="12" cy="-6" r="4" fill="#1E293B"/>` : ''}
+              ` : `
+                <!-- Exposed Regeneration Blastema Tissue Seam -->
+                <path d="M0,-96 L0,42" stroke="#FDA4AF" stroke-width="6" stroke-linecap="round"/>
+              `}
+              <circle cx="0" cy="0" r="14" fill="#EC4899" stroke="#FCE7F3" stroke-width="1.5" opacity="0.85"/>
             </g>
 
-            <!-- Right Split Piece + Regrowing Left Arms -->
+            <!-- Right Split Piece + Blastema & Regrowing Left Arms -->
             <g transform="translate(${rightX}, ${215 + bobR})">
-              <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46"
-                fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
+              <polygon points="0,-108 15,-64 28,-34 66,-36 105,-32 74,-6 44,17 56,56 66,93 32,70 0,48"
+                fill="url(#starBodyGrad)" stroke="#9D174D" stroke-width="4" stroke-linejoin="round"/>
+              <line x1="12" y1="-4" x2="88" y2="-27" stroke="#FCE7F3" stroke-width="2.8" stroke-linecap="round" opacity="0.8"/>
+              <line x1="8" y1="10" x2="54" y2="77" stroke="#FCE7F3" stroke-width="2.8" stroke-linecap="round" opacity="0.8"/>
               ${state.rightRegen > 0 ? `
                 <g transform="scale(${easeOutBack(state.rightRegen)}, 1)">
-                  <polygon points="0,-105 0,46 -64,90 -42,16 -102,-32 -27,-32"
-                    fill="#F9A8D4" stroke="#BE185D" stroke-width="3.5" stroke-dasharray="${state.rightRegen >= 1 ? 'none' : '6 4'}" stroke-linejoin="round"/>
+                  <polygon points="0,-108 0,48 -32,70 -66,93 -56,56 -44,17 -74,-6 -105,-32 -66,-36 -28,-34 -15,-64"
+                    fill="${state.rightRegen >= 1 ? 'url(#starBodyGrad)' : 'url(#starRegenGrad)'}" stroke="#9D174D" stroke-width="3.5" stroke-dasharray="${state.rightRegen >= 1 ? 'none' : '6 4'}" stroke-linejoin="round"/>
+                  <line x1="-8" y1="10" x2="-54" y2="77" stroke="#FCE7F3" stroke-width="2.6" stroke-linecap="round" opacity="0.8"/>
+                  <line x1="-12" y1="-4" x2="-88" y2="-27" stroke="#FCE7F3" stroke-width="2.6" stroke-linecap="round" opacity="0.8"/>
                 </g>
-              ` : ''}
-              <circle cx="12" cy="-6" r="4" fill="#1E293B"/>
-              ${state.rightRegen >= 1 ? `<circle cx="-12" cy="-6" r="4" fill="#1E293B"/>` : ''}
+              ` : `
+                <!-- Exposed Regeneration Blastema Tissue Seam -->
+                <path d="M0,-96 L0,42" stroke="#FDA4AF" stroke-width="6" stroke-linecap="round"/>
+              `}
+              <circle cx="0" cy="0" r="14" fill="#EC4899" stroke="#FCE7F3" stroke-width="1.5" opacity="0.85"/>
             </g>
 
             ${state.regenDone ? renderDnaVisual(440, 355, 'clone', '100% Same') : ''}
@@ -1406,7 +1558,7 @@
           <!-- Step 2: Water Nutrient Droplets with Animated Ripple & Highlight -->
           ${state.sliced ? state.droplets.map((d, idx) => d.used ? '' : `
             <g data-drag="drop-${idx}" class="grab-target" transform="translate(${d.x}, ${d.y + Math.sin(time * 3.4 + idx) * 5})">
-              <circle cx="0" cy="6" r="${28 + Math.sin(time * 4.5 + idx) * 5}" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.45"/>
+              <circle cx="0" cy="6" r="${28 + Math.sin(time * 4.5 + idx) * 5}" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.5"/>
               <path d="M0,-26 C18,-5 24,8 24,17 A24,24 0 1,1 -24,17 C-24,8 -18,-5 0,-26 Z"
                 fill="#38BDF8" stroke="#0284C7" stroke-width="3.2"/>
               <ellipse cx="-7" cy="8" rx="4.5" ry="9" fill="#FFFFFF" opacity="0.7" transform="rotate(-20 -7 8)"/>
@@ -1428,9 +1580,7 @@
 
       // 3. WHIPTAIL LIZARD (PARTHENOGENESIS)
       else if (currentOrg === 'lizard') {
-        const tailFlick = Math.sin(time * 3.8) * 10;
         const rot = Math.sin(state.wobble * 24) * 15;
-        const headNod = Math.sin(time * 2.4) * 2.5;
         const eggPop = easeOutBack(state.layT || 0);
         const cloudX = ((time * 16) % 1040) - 90;
         const isWarming = state.eggsLaid && !state.hatched && Math.hypot(state.sun.x - 552, state.sun.y - 275) < 120;
@@ -1446,49 +1596,41 @@
           <defs>
             <linearGradient id="desertBg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#FEFCE8"/>
-              <stop offset="55%" stop-color="#FEF08A"/>
+              <stop offset="50%" stop-color="#FEF08A"/>
               <stop offset="100%" stop-color="#FDE047"/>
             </linearGradient>
             <linearGradient id="sunCone" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#FDE047" stop-opacity="0.5"/>
+              <stop offset="0%" stop-color="#FDE047" stop-opacity="0.55"/>
               <stop offset="100%" stop-color="#FDE047" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <rect width="880" height="420" fill="url(#desertBg)"/>
-          <!-- Distant Desert Mesas & Drifting Cloud -->
-          <polygon points="40,320 120,210 260,210 340,320" fill="#FCD34D" opacity="0.55"/>
-          <polygon points="560,320 630,225 760,225 835,320" fill="#FBBF24" opacity="0.4"/>
-          <g transform="translate(${cloudX}, 54)" opacity="0.7">
-            <ellipse cx="0" cy="0" rx="44" ry="16" fill="#FFFFFF"/>
+          <!-- Grand Red-Rock Canyon Mesas & Drifting Cloud -->
+          <polygon points="20,320 110,195 270,195 360,320" fill="#FDBA74" opacity="0.5"/>
+          <polygon points="540,320 625,210 770,210 855,320" fill="#F59E0B" opacity="0.32"/>
+          <g transform="translate(${cloudX}, 54)" opacity="0.78">
+            <ellipse cx="0" cy="0" rx="46" ry="16" fill="#FFFFFF"/>
             <ellipse cx="26" cy="-5" rx="30" ry="14" fill="#FFFFFF"/>
           </g>
-          <!-- Rolling Sand Dunes -->
-          <path d="M0,315 Q240,285 480,315 T880,305 L880,420 L0,420 Z" fill="#F59E0B" fill-opacity="0.22"/>
-          <path d="M110,335 L110,220 A14,14 0 0,1 138,220 L138,335 Z" fill="#34D399" stroke="#059669" stroke-width="3"/>
-          <path d="M110,275 L86,275 L86,245 A10,10 0 0,1 106,245 L106,260" fill="#34D399" stroke="#059669" stroke-width="3"/>
-          <ellipse cx="440" cy="360" rx="390" ry="28" fill="#D97706" fill-opacity="0.25"/>
+          <!-- Rolling Sand Dunes & Flowering Saguaro Cactus -->
+          <path d="M0,315 Q240,285 480,315 T880,305 L880,420 L0,420 Z" fill="#F59E0B" fill-opacity="0.24"/>
+          <path d="M110,335 L110,215 A14,14 0 0,1 138,215 L138,335 Z" fill="#10B981" stroke="#065F46" stroke-width="3"/>
+          <path d="M110,275 L86,275 L86,245 A10,10 0 0,1 106,245 L106,260" fill="#10B981" stroke="#065F46" stroke-width="3"/>
+          <circle cx="124" cy="199" r="5" fill="#F43F5E"/>
+          <ellipse cx="440" cy="360" rx="390" ry="28" fill="#D97706" fill-opacity="0.28"/>
 
           ${renderCalloutTag(245, 62, '1 Female Only (No Male)', 'warn')}
 
           <!-- Warm Sand Nest -->
           <g transform="translate(552, 282)">
-            <ellipse cx="0" cy="0" rx="125" ry="40" fill="#FBBF24" fill-opacity="0.45"
+            <ellipse cx="0" cy="0" rx="125" ry="40" fill="#FBBF24" fill-opacity="0.48"
               stroke="${state.eggsLaid ? '#D97706' : '#F59E0B'}" stroke-width="3" stroke-dasharray="${state.eggsLaid ? 'none' : '8 6'}"/>
           </g>
 
-          <!-- Female Whiptail Lizard -->
-          <g data-drag="${state.eggsLaid ? '' : 'lizard-belly'}" class="${state.eggsLaid ? '' : 'grab-target'}"
-             transform="translate(245, 240)">
-            <path d="M-115,32 Q-55,${44 + tailFlick} 0,20" fill="none" stroke="#059669" stroke-width="10" stroke-linecap="round"/>
-            <ellipse cx="24" cy="16" rx="54" ry="20" fill="#10B981" stroke="#065F46" stroke-width="3"/>
-            <line x1="-16" y1="10" x2="62" y2="10" stroke="#FEF08A" stroke-width="2.8"/>
-            <line x1="-16" y1="22" x2="62" y2="22" stroke="#FEF08A" stroke-width="2.8"/>
-            <g transform="translate(86, ${11 + headNod})">
-              <ellipse cx="0" cy="0" rx="22" ry="14" fill="#10B981" stroke="#065F46" stroke-width="3"/>
-              <circle cx="8" cy="-4" r="3.2" fill="#042F2E"/>
-            </g>
-            <path d="M-2,34 L-12,56 M46,34 L56,56" stroke="#065F46" stroke-width="5.5" stroke-linecap="round"/>
-            ${!state.eggsLaid && state.visualRub > 0 ? renderProgressRing(24, 16, 30, state.visualRub, '#F59E0B') : ''}
+          <!-- Realistic Anatomical Female Whiptail Lizard -->
+          <g data-drag="${state.eggsLaid ? '' : 'lizard-belly'}" class="${state.eggsLaid ? '' : 'grab-target'}">
+            ${drawRealisticLizard(245, 240, 1, time * 2.8, '#10B981', '#FEF08A', '#064E3B')}
+            ${!state.eggsLaid && state.visualRub > 0 ? renderProgressRing(255, 255, 32, state.visualRub, '#F59E0B') : ''}
           </g>
 
           <!-- Unfertilized Eggs with Progressive Cracking -> 2 Hatched Female Clones -->
@@ -1511,12 +1653,12 @@
 
             <!-- Draggable Animated Radiant Sun -->
             <g data-drag="sunbeam" class="grab-target" transform="translate(${state.sun.x}, ${state.sun.y})">
-              <circle cx="0" cy="0" r="${52 + Math.sin(time * 4) * 5}" fill="#FDE047" fill-opacity="0.28"/>
+              <circle cx="0" cy="0" r="${52 + Math.sin(time * 4) * 5}" fill="#FDE047" fill-opacity="0.32"/>
               <g transform="rotate(${time * 28})">
                 ${sunRays}
               </g>
               <circle cx="0" cy="0" r="28" fill="#FBBF24" stroke="#D97706" stroke-width="3.2"/>
-              <circle cx="-8" cy="-8" r="7" fill="#FEF9C3" opacity="0.7"/>
+              <circle cx="-8" cy="-8" r="7" fill="#FEF9C3" opacity="0.75"/>
             </g>
           ` : ''}
 
@@ -1528,14 +1670,15 @@
               <g transform="translate(${eg.x - 14}, ${eg.y + 16}) scale(0.75)">
                 <path d="M-18,0 A18,16 0 0,0 18,0 L9,-5 L0,3 L-9,-5 Z" fill="#FFFBEB" stroke="#D97706" stroke-width="3"/>
               </g>
-              <g transform="translate(${eg.tx + idx * 14}, ${eg.ty - idx * 18 + Math.sin(time * 4.5 + idx) * 3}) scale(${lerp(0.2, 0.56, easeOutBack(state.scurryT))})">
-                <path d="M-95,32 Q-45,${42 + tailFlick} 0,20" fill="none" stroke="#059669" stroke-width="10" stroke-linecap="round"/>
-                <ellipse cx="24" cy="16" rx="54" ry="20" fill="#34D399" stroke="#065F46" stroke-width="3"/>
-                <line x1="-16" y1="10" x2="62" y2="10" stroke="#FEF08A" stroke-width="2.8"/>
-                <line x1="-16" y1="22" x2="62" y2="22" stroke="#FEF08A" stroke-width="2.8"/>
-                <ellipse cx="86" cy="11" rx="22" ry="14" fill="#34D399" stroke="#065F46" stroke-width="3"/>
-                <circle cx="94" cy="7" r="3.2" fill="#042F2E"/>
-              </g>
+              ${drawRealisticLizard(
+                eg.tx + 24 + idx * 28,
+                eg.ty - 6 - idx * 24,
+                lerp(0.18, 0.44, easeOutBack(state.scurryT)),
+                time * 5.2 + idx * 1.6,
+                '#34D399',
+                '#FEF08A',
+                '#064E3B'
+              )}
             `).join('')}
           ` : ''}
 
@@ -1547,7 +1690,7 @@
       else if (currentOrg === 'plant') {
         const breeze = Math.sin(time * 2.4) * 4.5;
         const pupScale = state.pup.planted
-          ? lerp(0.58, 1.12, easeOutBack(state.pup.growT))
+          ? lerp(0.58, 1.08, easeOutBack(state.pup.growT))
           : lerp(0.1, 0.58, easeOutBack(state.sproutT));
 
         svg.innerHTML = `
@@ -1558,29 +1701,59 @@
               <stop offset="68%" stop-color="#78350F"/>
               <stop offset="100%" stop-color="#451A03"/>
             </linearGradient>
+            <linearGradient id="leafBladeGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#34D399"/>
+              <stop offset="50%" stop-color="#10B981"/>
+              <stop offset="100%" stop-color="#047857"/>
+            </linearGradient>
+            <linearGradient id="potTerracotta" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#D97706"/>
+              <stop offset="40%" stop-color="#B45309"/>
+              <stop offset="100%" stop-color="#78350F"/>
+            </linearGradient>
+            <!-- Clip path ensuring roots grow strictly inside the soil pot interior -->
+            <clipPath id="potSoilClip">
+              <polygon points="576,268 684,268 671,336 589,336"/>
+            </clipPath>
           </defs>
           <rect width="880" height="420" fill="url(#gardenBg)"/>
-          <!-- Soft Greenhouse Arches & Hanging Garden Leaves -->
-          <path d="M80,285 A180,210 0 0,1 440,285" fill="none" stroke="#A7F3D0" stroke-width="4" opacity="0.65"/>
-          <path d="M440,285 A180,210 0 0,1 800,285" fill="none" stroke="#A7F3D0" stroke-width="4" opacity="0.65"/>
-          <path d="M60,0 Q72,42 54,82" fill="none" stroke="#34D399" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
-          <path d="M825,0 Q812,48 830,90" fill="none" stroke="#10B981" stroke-width="6" stroke-linecap="round" opacity="0.45"/>
-          ${ambient.slice(0, 6).map((p, i) => `
-            <circle cx="${p.x + Math.sin(time * 1.4 + i) * 14}" cy="${120 + (i * 25) % 140}" r="3" fill="#FBBF24" opacity="0.55"/>
+          <!-- Grand Greenhouse Glass Arches, Hanging Vines & Floating Pollen -->
+          <path d="M60,285 A190,220 0 0,1 440,285" fill="none" stroke="#6EE7B7" stroke-width="4.5" opacity="0.65"/>
+          <path d="M440,285 A190,220 0 0,1 820,285" fill="none" stroke="#6EE7B7" stroke-width="4.5" opacity="0.65"/>
+          <line x1="250" y1="65" x2="250" y2="285" stroke="#A7F3D0" stroke-width="2" opacity="0.6"/>
+          <line x1="630" y1="65" x2="630" y2="285" stroke="#A7F3D0" stroke-width="2" opacity="0.6"/>
+          <path d="M60,0 Q74,46 54,88" fill="none" stroke="#10B981" stroke-width="7" stroke-linecap="round" opacity="0.5"/>
+          <path d="M825,0 Q810,50 830,96" fill="none" stroke="#059669" stroke-width="7" stroke-linecap="round" opacity="0.45"/>
+          ${ambient.slice(0, 7).map((p, i) => `
+            <circle cx="${p.x + Math.sin(time * 1.4 + i) * 14}" cy="${115 + (i * 25) % 145}" r="3.2" fill="#FBBF24" opacity="0.6"/>
           `).join('')}
 
           ${renderCalloutTag(265, 62, '1 Parent Leaf (2n)', 'neutral')}
 
-          <!-- Soil Pot -->
+          <!-- Soil Pot Back Rim & Rich Soil Bed -->
           <g transform="translate(630, 285)">
-            <polygon points="-58,-20 58,-20 44,54 -44,54" fill="#B45309" stroke="#78350F" stroke-width="3.5"/>
+            <ellipse cx="0" cy="-22" rx="58" ry="10" fill="#451A03"/>
+            <polygon points="-58,-20 58,-20 44,54 -44,54" fill="url(#potTerracotta)" stroke="#78350F" stroke-width="3.5"/>
+            <ellipse cx="0" cy="-20" rx="54" ry="8" fill="#5C2D16"/>
             <rect x="-65" y="-30" width="130" height="14" rx="6" fill="#D97706" stroke="#78350F" stroke-width="3"/>
           </g>
 
-          <!-- Parent Air Plant Leaf -->
+          <!-- Realistic Botanical Parent Leaf (Serrated Crenate Margins, Midrib & Lateral Veins) -->
           <g transform="translate(275, 222) rotate(${breeze * 0.45})">
-            <path d="M-135,28 Q-40,-75 135,-12 Q45,82 -135,28 Z" fill="#10B981" stroke="#065F46" stroke-width="4"/>
-            <path d="M-110,22 Q0,-10 115,-8" fill="none" stroke="#059669" stroke-width="2.5" stroke-dasharray="7 5"/>
+            <!-- Soft Leaf Shadow -->
+            <ellipse cx="0" cy="54" rx="115" ry="12" fill="#065F46" opacity="0.16"/>
+            <!-- Succulent Serrated Leaf Blade -->
+            <path d="M-142,30 C-122,-4 -92,-36 -60,-46 C-48,-52 -36,-44 -24,-48 C-10,-54 4,-44 18,-46 C34,-50 48,-38 64,-38 C82,-38 102,-24 136,-10 C106,18 76,40 48,46 C32,50 18,44 2,48 C-14,52 -28,44 -44,46 C-62,48 -82,38 -102,38 C-118,38 -130,34 -142,30 Z"
+              fill="url(#leafBladeGrad)" stroke="#064E3B" stroke-width="3.8" stroke-linejoin="round"/>
+            <!-- Central Midrib & Branching Lateral Veins -->
+            <path d="M-136,29 Q-12,-4 128,-9" fill="none" stroke="#A7F3D0" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M-75,14 Q-54,-12 -38,-36 M-35,7 Q-12,-16 6,-36 M12,1 Q32,-16 50,-30 M56,-4 Q74,-14 90,-22"
+              fill="none" stroke="#6EE7B7" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+            <path d="M-65,13 Q-44,28 -28,38 M-20,6 Q2,24 18,36 M28,0 Q46,18 62,30"
+              fill="none" stroke="#065F46" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+            <!-- Foliar Meristem Notches along Margin -->
+            <circle cx="64" cy="-36" r="3" fill="#FEF08A" opacity="0.8"/>
+            <circle cx="18" cy="-44" r="2.6" fill="#FEF08A" opacity="0.75"/>
           </g>
 
           <!-- Watering Ripple on Leaf -->
@@ -1600,26 +1773,85 @@
             </g>
           ` : ''}
 
-          <!-- Step 2: Sprouting / Planted Pup -->
+          <!-- Step 2: Sprouting / Planted Pup (Roots Clipped Inside Soil + Pot Wall Overlay) -->
           ${state.sproutT > 0.05 ? `
             ${!state.pup.planted && Math.hypot(state.pup.x - 355, state.pup.y - 190) > 12 ? `
               <path d="M355,190 Q${(355 + state.pup.x) * 0.5},${(190 + state.pup.y) * 0.5 + 24} ${state.pup.x},${state.pup.y}"
                 fill="none" stroke="#34D399" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
             ` : ''}
+
+            <!-- Clipped Fibrous Roots Inside the Soil Pot -->
+            ${state.pup.planted && state.pup.growT > 0.05 ? `
+              <g clip-path="url(#potSoilClip)">
+                <g transform="translate(630, 265) scale(${lerp(0.4, 1, state.pup.growT)}, ${state.pup.growT})">
+                  <path d="M0,0 Q-16,24 -26,52 M-12,22 Q-24,34 -34,44" fill="none" stroke="#FDE047" stroke-width="3.2" stroke-linecap="round"/>
+                  <path d="M0,0 Q-4,28 -6,58 M-3,30 Q-12,44 -14,54" fill="none" stroke="#FEF08A" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M0,0 Q14,26 24,54 M12,24 Q24,36 32,46" fill="none" stroke="#FDE047" stroke-width="3.2" stroke-linecap="round"/>
+                </g>
+              </g>
+              <!-- Semi-Translucent Cutaway Pot Front Wall so Roots Stay Inside Pot Physics -->
+              <g transform="translate(630, 285)" pointer-events="none">
+                <polygon points="-58,-20 58,-20 44,54 -44,54" fill="url(#potTerracotta)" fill-opacity="0.72" stroke="#78350F" stroke-width="3.5"/>
+                <rect x="-65" y="-30" width="130" height="14" rx="6" fill="#D97706" stroke="#78350F" stroke-width="3"/>
+              </g>
+            ` : ''}
+
+            <!-- Above-Soil Realistic Botanical Rosette Plantlet (Stem + Layered Veined Leaves) -->
             <g data-drag="${state.pup.planted ? '' : 'plant-pup'}" class="${state.pup.planted ? '' : 'grab-target'}"
                transform="translate(${state.pup.x}, ${state.pup.y + (state.pup.planted ? 0 : Math.sin(time * 3) * 2.5)}) rotate(${breeze * 0.6}) scale(${pupScale})">
-              ${state.pup.planted && state.pup.growT > 0.05 ? `
-                <g transform="scale(1, ${state.pup.growT})">
-                  <path d="M0,0 L-18,38 M0,0 L0,44 M0,0 L18,38" stroke="#FDE047" stroke-width="3.5" stroke-linecap="round"/>
-                </g>
+              <!-- Tiny Adventitious Root Hair Buds before planting -->
+              ${!state.pup.planted ? `
+                <path d="M-3,0 L-8,12 M0,0 L0,15 M3,0 L8,12" stroke="#FEF08A" stroke-width="2.2" stroke-linecap="round"/>
               ` : ''}
+              <!-- Green Herbaceous Stem -->
+              <path d="M-3,2 L-2,-24 L2,-24 L3,2 Z" fill="#059669" stroke="#064E3B" stroke-width="1.5"/>
+              <!-- Lower Pair of Spreading Leaves with Midribs -->
+              <path d="M-1,-10 C-22,-18 -46,-28 -54,-46 C-34,-46 -14,-32 -1,-10 Z" fill="#10B981" stroke="#064E3B" stroke-width="2.4" stroke-linejoin="round"/>
+              <path d="M-3,-13 Q-26,-26 -46,-41" fill="none" stroke="#A7F3D0" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M1,-10 C22,-18 46,-28 54,-46 C34,-46 14,-32 1,-10 Z" fill="#10B981" stroke="#064E3B" stroke-width="2.4" stroke-linejoin="round"/>
+              <path d="M3,-13 Q26,-26 46,-41" fill="none" stroke="#A7F3D0" stroke-width="1.5" stroke-linecap="round"/>
+              <!-- Upper Crown Leaves & Central Apical Shoot -->
+              <path d="M-1,-20 C-16,-38 -28,-56 -24,-70 C-10,-62 -2,-42 -1,-20 Z" fill="#34D399" stroke="#064E3B" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="M1,-20 C16,-38 28,-56 24,-70 C10,-62 2,-42 1,-20 Z" fill="#34D399" stroke="#064E3B" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="M0,-22 C-8,-46 -6,-66 0,-78 C6,-66 8,-46 0,-22 Z" fill="#6EE7B7" stroke="#065F46" stroke-width="2"/>
+            </g>
+          ` : ''}
+
+          <!-- Step 2: Sprouting / Planted Pup (Roots Clipped Inside Soil + Pot Wall Overlay) -->
+          ${state.sproutT > 0.05 ? `
+            ${!state.pup.planted && Math.hypot(state.pup.x - 355, state.pup.y - 190) > 12 ? `
+              <path d="M355,190 Q${(355 + state.pup.x) * 0.5},${(190 + state.pup.y) * 0.5 + 24} ${state.pup.x},${state.pup.y}"
+                fill="none" stroke="#34D399" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+            ` : ''}
+
+            <!-- Clipped Fibrous Roots Inside the Soil Pot -->
+            ${state.pup.planted && state.pup.growT > 0.05 ? `
+              <g clip-path="url(#potSoilClip)">
+                <g transform="translate(630, 265) scale(${lerp(0.4, 1, state.pup.growT)}, ${state.pup.growT})">
+                  <path d="M0,0 Q-16,24 -26,52 M-12,22 Q-24,34 -34,44" fill="none" stroke="#FDE047" stroke-width="3.2" stroke-linecap="round"/>
+                  <path d="M0,0 Q-4,28 -6,58 M-3,30 Q-12,44 -14,54" fill="none" stroke="#FEF08A" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M0,0 Q14,26 24,54 M12,24 Q24,36 32,46" fill="none" stroke="#FDE047" stroke-width="3.2" stroke-linecap="round"/>
+                </g>
+              </g>
+              <!-- Semi-Translucent Cutaway Pot Front Wall so Roots Stay Inside Pot Physics -->
+              <g transform="translate(630, 285)" pointer-events="none">
+                <polygon points="-58,-20 58,-20 44,54 -44,54" fill="#B45309" fill-opacity="0.72" stroke="#78350F" stroke-width="3.5"/>
+                <rect x="-65" y="-30" width="130" height="14" rx="6" fill="#D97706" stroke="#78350F" stroke-width="3"/>
+              </g>
+            ` : ''}
+
+            <!-- Above-Soil Plantlet Crown -->
+            <g data-drag="${state.pup.planted ? '' : 'plant-pup'}" class="${state.pup.planted ? '' : 'grab-target'}"
+               transform="translate(${state.pup.x}, ${state.pup.y + (state.pup.planted ? 0 : Math.sin(time * 3) * 2.5)}) rotate(${breeze * 0.6}) scale(${pupScale})">
               <path d="M0,0 Q-20,-56 0,-78 Q20,-56 0,0 Z" fill="#F97316" stroke="#9A3412" stroke-width="2.5"/>
               <path d="M0,0 Q-46,-30 -52,-56 Q-20,-44 0,0 Z" fill="#10B981" stroke="#065F46" stroke-width="2.5"/>
               <path d="M0,0 Q46,-30 52,-56 Q20,-44 0,0 Z" fill="#10B981" stroke="#065F46" stroke-width="2.5"/>
+              <path d="M0,0 Q-10,-40 0,-62 Q10,-40 0,0 Z" fill="#34D399" opacity="0.8"/>
             </g>
+
             ${state.pup.planted && !state.sunDrop.used ? `
               <g data-drag="plant-sun" class="grab-target" transform="translate(${state.sunDrop.x}, ${state.sunDrop.y})">
-                <circle cx="0" cy="0" r="${44 + Math.sin(time * 4) * 5}" fill="#FDE047" fill-opacity="0.3"/>
+                <circle cx="0" cy="0" r="${44 + Math.sin(time * 4) * 5}" fill="#FDE047" fill-opacity="0.34"/>
                 <g transform="rotate(${time * 32})">
                   ${Array.from({ length: 8 }, (_, k) => {
                     const a = (k * Math.PI) / 4;
@@ -1642,8 +1874,8 @@
       // 5. ROOSTER & HEN (SEXUAL REPRODUCTION)
       else if (currentOrg === 'fowl') {
         const chick = CHICK_VARIANTS[state.variantIdx];
-        const bob = Math.sin(time * 3.4) * 4;
-        const wingFlap = Math.sin(time * 6) * 8;
+        const bob = Math.sin(time * 3.4) * 3;
+        const wingFlap = Math.sin(time * 6) * 7;
         const cloudA = ((time * 14) % 1020) - 80;
         svg.innerHTML = `
           <defs>
@@ -1653,14 +1885,38 @@
               <stop offset="72%" stop-color="#DCFCE7"/>
               <stop offset="100%" stop-color="#BBF7D0"/>
             </linearGradient>
+            <linearGradient id="roosterBodyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#4F46E5"/>
+              <stop offset="65%" stop-color="#3730A3"/>
+              <stop offset="100%" stop-color="#1E1B4B"/>
+            </linearGradient>
+            <linearGradient id="roosterHackleGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#F59E0B"/>
+              <stop offset="55%" stop-color="#EA580C"/>
+              <stop offset="100%" stop-color="#4338CA"/>
+            </linearGradient>
+            <linearGradient id="henBodyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#F472B6"/>
+              <stop offset="55%" stop-color="#DB2777"/>
+              <stop offset="100%" stop-color="#831843"/>
+            </linearGradient>
+            <radialGradient id="eggShellGrad" cx="36%" cy="32%" r="68%">
+              <stop offset="0%" stop-color="#FFFBEB"/>
+              <stop offset="65%" stop-color="#FEF3C7"/>
+              <stop offset="100%" stop-color="#FDE68A"/>
+            </radialGradient>
           </defs>
           <rect width="880" height="420" fill="url(#meadowBg)"/>
-          <!-- Rolling Hills & Drifting Cloud -->
-          <path d="M0,302 Q220,275 440,302 T880,295 L880,320 L0,320 Z" fill="#86EFAC" opacity="0.6"/>
-          <g transform="translate(${cloudA}, 55)" opacity="0.75">
+          <!-- Rolling Hills, Wildflowers & Drifting Cloud -->
+          <path d="M0,302 Q220,275 440,302 T880,295 L880,320 L0,320 Z" fill="#86EFAC" opacity="0.65"/>
+          <g transform="translate(${cloudA}, 55)" opacity="0.78">
             <ellipse cx="0" cy="0" rx="46" ry="16" fill="#FFFFFF"/>
             <ellipse cx="26" cy="-6" rx="28" ry="14" fill="#FFFFFF"/>
           </g>
+          <!-- Meadow Wildflowers -->
+          <circle cx="88" cy="346" r="4" fill="#F43F5E"/><circle cx="94" cy="352" r="3.5" fill="#FBBF24"/>
+          <circle cx="788" cy="348" r="4" fill="#818CF8"/><circle cx="796" cy="342" r="3.5" fill="#FBBF24"/>
+
           <!-- Animated Floating Hearts Between Parents -->
           <path d="M440,${105 + Math.sin(time * 3) * 6} C432,${96 + Math.sin(time * 3) * 6} 420,${104 + Math.sin(time * 3) * 6} 440,${120 + Math.sin(time * 3) * 6} C460,${104 + Math.sin(time * 3) * 6} 448,${96 + Math.sin(time * 3) * 6} 440,${105 + Math.sin(time * 3) * 6} Z"
             fill="#F43F5E" opacity="${0.35 + Math.sin(time * 4) * 0.2}"/>
@@ -1668,83 +1924,134 @@
           ${renderCalloutTag(185, 58, 'Male (2n)', 'neutral')}
           ${renderCalloutTag(695, 58, 'Female (2n)', 'neutral')}
 
-          <!-- Left Rooster -->
-          <g transform="translate(185, ${235 + Math.sin(time * 2.5) * 2.5})">
-            <path d="M-38,10 Q-75,-35 -60,20 Q-82,-10 -52,32" fill="#4F46E5" stroke="#1E1B4B" stroke-width="3"/>
-            <ellipse cx="0" cy="18" rx="45" ry="34" fill="#6366F1" stroke="#1E1B4B" stroke-width="3.2"/>
-            <circle cx="30" cy="-14" r="22" fill="#818CF8" stroke="#1E1B4B" stroke-width="3"/>
-            <path d="M18,-34 Q26,-52 34,-35 Q42,-52 48,-32" fill="#EF4444" stroke="#991B1B" stroke-width="2.2"/>
-            <polygon points="50,-16 66,-10 50,-4" fill="#F59E0B" stroke="#1E1B4B" stroke-width="2.2"/>
-            <circle cx="36" cy="-18" r="3.5" fill="#1E1B4B"/>
+          <!-- Left Rooster (Detailed Anatomical Plumage, Golden Neck Hackles, Iridescent Sickle Tail & Spurs) -->
+          <g transform="translate(185, ${242 + Math.sin(time * 2.5) * 2})">
+            <ellipse cx="0" cy="48" rx="48" ry="8.5" fill="#15803D" opacity="0.24"/>
+            <!-- Scaled Tarsus Legs with Claws & Tarsal Spurs -->
+            <path d="M-8,28 L-10,46 M-10,46 L-19,49 M-10,46 L-1,49 M-10,46 L-10,50 M-9,38 L-17,35" fill="none" stroke="#D97706" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M12,28 L14,46 M14,46 L5,49 M14,46 L23,49 M14,46 L14,50 M13,38 L5,35" fill="none" stroke="#D97706" stroke-width="3.2" stroke-linecap="round"/>
+            <!-- Iridescent Arched Sickle Tail Plumes -->
+            <path d="M-30,6 C-66,-52 -96,-24 -68,16 C-90,-10 -94,16 -56,28 C-78,18 -74,36 -42,32 Z" fill="#1E1B4B" stroke="#0F172A" stroke-width="2.4" stroke-linejoin="round"/>
+            <path d="M-32,4 C-62,-38 -82,-16 -58,12" fill="none" stroke="#34D399" stroke-width="3.2" stroke-linecap="round" opacity="0.8"/>
+            <path d="M-34,10 C-68,-20 -82,2 -54,20" fill="none" stroke="#6366F1" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+            <!-- Muscular Chest & Body with Feather Scallops -->
+            <path d="M-38,14 C-36,-14 18,-18 40,6 C48,22 34,37 6,37 C-22,37 -38,26 -38,14 Z" fill="url(#roosterBodyGrad)" stroke="#1E1B4B" stroke-width="2.8"/>
+            <!-- Layered Wing Coverts & Primary Flight Feathers -->
+            <path d="M-18,6 C4,1 24,10 22,25 C6,32 -16,25 -18,6 Z" fill="#6366F1" stroke="#1E1B4B" stroke-width="2"/>
+            <path d="M-12,13 Q4,10 16,16 M-10,19 Q4,17 14,22" fill="none" stroke="#A5B4FC" stroke-width="1.6" stroke-linecap="round"/>
+            <!-- Golden-Copper Neck Hackle Feathers -->
+            <path d="M10,-4 C13,-24 37,-24 39,-4 L36,14 L8,14 Z" fill="url(#roosterHackleGrad)" stroke="#1E1B4B" stroke-width="2.4"/>
+            <path d="M14,8 L18,14 L23,8 L28,14 L33,8" fill="none" stroke="#FDE047" stroke-width="1.8" stroke-linecap="round"/>
+            <!-- Head, White Ear Lobe, Serrated Red Comb & Hanging Wattles -->
+            <circle cx="27" cy="-20" r="14.5" fill="#EA580C" stroke="#1E1B4B" stroke-width="2.5"/>
+            <path d="M14,-33 L18,-45 L23,-35 L28,-47 L33,-35 L38,-43 L39,-30 Z" fill="#DC2626" stroke="#7F1D1D" stroke-width="1.8" stroke-linejoin="round"/>
+            <ellipse cx="21" cy="-16" rx="3.2" ry="4.5" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1"/>
+            <path d="M31,-10 C29,3 38,6 40,-6 Z" fill="#EF4444" stroke="#7F1D1D" stroke-width="1.6"/>
+            <polygon points="41,-22 57,-17 41,-12" fill="#F59E0B" stroke="#78350F" stroke-width="2" stroke-linejoin="round"/>
+            <line x1="41" y1="-17" x2="55" y2="-17" stroke="#78350F" stroke-width="1.2"/>
+            <circle cx="32" cy="-22" r="3.2" fill="#FEF08A"/>
+            <circle cx="32.6" cy="-22" r="1.7" fill="#0F172A"/>
           </g>
 
-          <!-- Right Hen -->
-          <g transform="translate(695, ${240 + Math.cos(time * 2.5) * 2.5})">
-            <path d="M36,12 Q64,-16 52,22" fill="#DB2777" stroke="#500724" stroke-width="3"/>
-            <ellipse cx="0" cy="18" rx="42" ry="32" fill="#EC4899" stroke="#500724" stroke-width="3.2"/>
-            <circle cx="-28" cy="-12" r="20" fill="#F472B6" stroke="#500724" stroke-width="3"/>
-            <path d="M-36,-30 Q-28,-44 -20,-30" fill="#EF4444" stroke="#991B1B" stroke-width="2.2"/>
-            <polygon points="-46,-14 -60,-8 -46,-2" fill="#F59E0B" stroke="#500724" stroke-width="2.2"/>
-            <circle cx="-33" cy="-16" r="3.5" fill="#500724"/>
+          <!-- Right Hen (Detailed Soft Plumage, Scalloped Wing Feathers, Small Comb & Legs) -->
+          <g transform="translate(695, ${245 + Math.cos(time * 2.5) * 2})">
+            <ellipse cx="0" cy="45" rx="44" ry="8.5" fill="#15803D" opacity="0.24"/>
+            <path d="M-10,26 L-12,43 M-12,43 L-20,46 M-12,43 L-4,46 M-12,43 L-12,47" fill="none" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+            <path d="M10,26 L12,43 M12,43 L4,46 M12,43 L20,46 M12,43 L12,47" fill="none" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+            <!-- Soft Fanned Hen Tail Feathers -->
+            <path d="M30,8 L60,-14 L53,2 L64,7 L54,16 L60,22 L38,25 Z" fill="#9D174D" stroke="#500724" stroke-width="2.4" stroke-linejoin="round"/>
+            <!-- Rounded Brooding Body -->
+            <path d="M-38,10 C-28,-13 24,-15 39,10 C43,27 24,37 -4,37 C-29,37 -41,24 -38,10 Z" fill="url(#henBodyGrad)" stroke="#500724" stroke-width="2.8"/>
+            <!-- Scalloped Wing Coverts -->
+            <path d="M-15,8 C4,3 22,11 18,24 C3,29 -15,23 -15,8 Z" fill="#F9A8D4" stroke="#831843" stroke-width="2"/>
+            <path d="M-8,14 Q4,12 13,17 M-6,20 Q4,18 11,22" fill="none" stroke="#9D174D" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- Neck Hackle Collar & Head -->
+            <path d="M-34,-2 C-34,-18 -14,-18 -14,-2 L-12,10 L-36,10 Z" fill="#F472B6" stroke="#500724" stroke-width="2"/>
+            <circle cx="-25" cy="-14" r="13.5" fill="#EC4899" stroke="#500724" stroke-width="2.5"/>
+            <path d="M-32,-27 L-28,-36 L-23,-28 L-18,-35 L-16,-25 Z" fill="#EF4444" stroke="#7F1D1D" stroke-width="1.6"/>
+            <path d="M-32,-5 C-34,4 -27,5 -26,-3 Z" fill="#EF4444" stroke="#7F1D1D" stroke-width="1.5"/>
+            <polygon points="-38,-16 -53,-11 -38,-6" fill="#F59E0B" stroke="#78350F" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="-29" cy="-16" r="3" fill="#FEF08A"/>
+            <circle cx="-29.5" cy="-16" r="1.6" fill="#0F172A"/>
           </g>
 
-          <!-- Center Nest -->
-          <g transform="translate(440, 292)">
-            <ellipse cx="0" cy="0" rx="88" ry="26" fill="#D97706" stroke="#78350F" stroke-width="3.2"/>
-            <ellipse cx="0" cy="-4" rx="70" ry="16" fill="#FDE68A"/>
+          <!-- Woven Straw Nest -->
+          <g transform="translate(440, 294)">
+            <ellipse cx="0" cy="4" rx="94" ry="26" fill="#B45309" stroke="#78350F" stroke-width="3.2"/>
+            <ellipse cx="0" cy="-2" rx="78" ry="18" fill="#FDE68A" stroke="#D97706" stroke-width="2"/>
+            <path d="M-76,2 Q-35,16 0,12 T76,2 M-64,9 Q0,22 64,9" fill="none" stroke="#92400E" stroke-width="2.2" stroke-linecap="round"/>
           </g>
 
           <!-- Draggable Haploid Gamete Orbs (♂ n and ♀ n) -->
           ${!state.roosterOrb.inNest ? `
             <g data-drag="orb-rooster" class="grab-target" transform="translate(${state.roosterOrb.x}, ${state.roosterOrb.y + Math.sin(time * 3.2) * 5})">
+              <circle cx="0" cy="0" r="${34 + Math.sin(time * 4) * 3}" fill="#6366F1" fill-opacity="0.22"/>
               <circle cx="0" cy="0" r="28" fill="#6366F1" stroke="#FFFFFF" stroke-width="3.5"/>
               <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#FFFFFF">♂ n</text>
             </g>
           ` : ''}
           ${!state.henOrb.inNest ? `
             <g data-drag="orb-hen" class="grab-target" transform="translate(${state.henOrb.x}, ${state.henOrb.y + Math.cos(time * 3.2) * 5})">
+              <circle cx="0" cy="0" r="${34 + Math.cos(time * 4) * 3}" fill="#EC4899" fill-opacity="0.22"/>
               <circle cx="0" cy="0" r="28" fill="#EC4899" stroke="#FFFFFF" stroke-width="3.5"/>
               <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#FFFFFF">♀ n</text>
             </g>
           ` : ''}
 
-          <!-- Genetic Mix Vortex & Cracking Fertilized Egg -->
+          <!-- Genetic Mix Vortex & Realistic Ovoid Fertilized Egg -->
           ${state.swirlT > 0 && !state.hatched ? `
             <g data-drag="${state.eggReady ? 'fowl-egg' : ''}" class="${state.eggReady ? 'grab-target' : ''}"
-               transform="translate(440, 248) rotate(${state.eggReady ? Math.sin(time * 10) * (6 + (state.crackClicks || 0) * 6) : 0})">
+               transform="translate(440, 256) rotate(${state.eggReady ? Math.sin(time * 10) * (6 + (state.crackClicks || 0) * 6) : 0})">
               ${!state.eggReady ? `
                 <circle cx="0" cy="0" r="${(1 - state.swirlT) * 58 + 14}" fill="none" stroke="#818CF8" stroke-width="4.5" stroke-dasharray="10 6"
                   transform="rotate(${state.swirlT * 420})"/>
               ` : ''}
-              <ellipse cx="0" cy="0" rx="30" ry="37" fill="#FFFBEB" stroke="#6366F1" stroke-width="3.5"/>
+              <!-- Realistic Tapered Avian Egg Shape with Shell Shading -->
+              <path d="M0,-38 C21,-38 30,-10 30,10 C30,28 17,37 0,37 C-17,37 -30,28 -30,10 C-30,-10 -21,-38 0,-38 Z"
+                fill="url(#eggShellGrad)" stroke="#92400E" stroke-width="3.2"/>
+              <ellipse cx="-10" cy="-12" rx="6" ry="13" fill="#FFFFFF" opacity="0.7" transform="rotate(-14 -10 -12)"/>
+              <circle cx="11" cy="14" r="2.5" fill="#D97706" opacity="0.45"/>
+              <circle cx="-8" cy="20" r="2" fill="#D97706" opacity="0.45"/>
               ${(state.crackClicks || 0) >= 1 ? `
                 <path d="M-12,-14 L-2,-4 L-10,6 L2,16 L-4,25" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/>
                 <path d="M-2,-4 L10,-10 L14,2" fill="none" stroke="#78350F" stroke-width="2.5" stroke-linecap="round"/>
               ` : ''}
-              <text x="0" y="6" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#312E81">2n</text>
+              <text x="0" y="7" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#78350F">2n</text>
             </g>
             ${renderCalloutTag(440, 175, state.eggReady ? ((state.crackClicks || 0) >= 1 ? 'Tap Once More!' : 'Tap Egg to Crack!') : 'n + n Fusing...', 'mix')}
           ` : ''}
 
-          <!-- Hatched Unique Chick + Cracked Eggshell Halves -->
+          <!-- Hatched Anatomical Chick Standing Inside Nest + Split Eggshells -->
           ${state.hatched ? `
             ${renderCalloutTag(440, 128, 'Unique Mix (2n)', 'mix')}
             ${renderDnaVisual(440, 62, 'mix', '50% + 50%')}
-            <!-- Split Eggshells Flying Open -->
-            <g transform="translate(${440 - lerp(8, 48, easeOutBack(state.hatchT || 1))}, 272) rotate(${lerp(0, -28, state.hatchT || 1)})">
-              <path d="M-22,0 A22,20 0 0,0 22,0 L11,-6 L0,4 L-11,-6 Z" fill="#FFFBEB" stroke="#6366F1" stroke-width="3"/>
+            <!-- Split Eggshells Resting on Nest Rim -->
+            <g transform="translate(${440 - lerp(12, 56, easeOutBack(state.hatchT || 1))}, 284) rotate(${lerp(0, -32, state.hatchT || 1)})">
+              <path d="M-20,0 A20,18 0 0,0 20,0 L10,-6 L0,4 L-10,-6 Z" fill="url(#eggShellGrad)" stroke="#92400E" stroke-width="2.8"/>
             </g>
-            <g transform="translate(${440 + lerp(8, 48, easeOutBack(state.hatchT || 1))}, 272) rotate(${lerp(0, 28, state.hatchT || 1)})">
-              <path d="M-22,0 A22,20 0 0,0 22,0 L11,-6 L0,4 L-11,-6 Z" fill="#FFFBEB" stroke="#6366F1" stroke-width="3"/>
+            <g transform="translate(${440 + lerp(12, 56, easeOutBack(state.hatchT || 1))}, 284) rotate(${lerp(0, 32, state.hatchT || 1)})">
+              <path d="M-20,0 A20,18 0 0,0 20,0 L10,-6 L0,4 L-10,-6 Z" fill="url(#eggShellGrad)" stroke="#92400E" stroke-width="2.8"/>
             </g>
-            <g transform="translate(440, ${226 + bob}) scale(${lerp(0.45, 1, easeOutBack(state.hatchT || 1))})">
-              <path d="M-32,6 Q-52,-12 -44,12" fill="${chick.tail}" stroke="#1E293B" stroke-width="2.5"/>
-              <circle cx="0" cy="0" r="38" fill="${chick.body}" stroke="#1E293B" stroke-width="3.2"/>
-              <ellipse cx="-12" cy="4" rx="15" ry="11" fill="${chick.wing}" stroke="#1E293B" stroke-width="2.5" transform="rotate(${wingFlap} -12 4)"/>
-              ${chick.spots ? `<circle cx="10" cy="14" r="4" fill="#9A3412" opacity="0.5"/>` : ''}
-              <path d="M-10,-35 Q-2,-52 6,-36 Q14,-52 20,-33" fill="${chick.comb}" stroke="#1E293B" stroke-width="2.2"/>
-              <polygon points="35,-4 52,2 35,8" fill="#F97316" stroke="#1E293B" stroke-width="2.2"/>
-              <circle cx="15" cy="-9" r="3.8" fill="#1E293B"/>
+            <!-- Grounded Anatomical Chick Standing Inside the Nest (Feet at y=288) -->
+            <g transform="translate(440, ${252 + Math.abs(bob) * 0.35}) scale(${lerp(0.45, 1, easeOutBack(state.hatchT || 1))})">
+              <!-- Grounded Chick Feet Inside Nest -->
+              <path d="M-8,20 L-10,35 M-10,35 L-17,37 M-10,35 L-3,37 M-10,35 L-10,38" fill="none" stroke="#EA580C" stroke-width="2.8" stroke-linecap="round"/>
+              <path d="M8,20 L10,35 M10,35 L3,37 M10,35 L17,37 M10,35 L10,38" fill="none" stroke="#EA580C" stroke-width="2.8" stroke-linecap="round"/>
+              <!-- Fluffy Tail Tuft -->
+              <path d="M-24,4 L-39,-9 L-33,4 L-41,11 L-24,14 Z" fill="${chick.tail}" stroke="#1E293B" stroke-width="2.2" stroke-linejoin="round"/>
+              <!-- Plump Downy Chick Body + Soft Belly Shading + Distinct Head -->
+              <ellipse cx="-2" cy="8" rx="25" ry="20" fill="${chick.body}" stroke="#1E293B" stroke-width="2.8"/>
+              <ellipse cx="-4" cy="14" rx="18" ry="11" fill="#FFFFFF" opacity="0.35"/>
+              <circle cx="14" cy="-12" r="16" fill="${chick.body}" stroke="#1E293B" stroke-width="2.8"/>
+              <!-- Flapping Downy Wing with Feather Detail -->
+              <path d="M-12,2 C0,-2 11,6 7,17 C-4,19 -14,12 -12,2 Z" fill="${chick.wing}" stroke="#1E293B" stroke-width="2.2" transform="rotate(${wingFlap * 0.6} -4 8)"/>
+              ${chick.spots ? `<circle cx="-8" cy="14" r="3.5" fill="#9A3412" opacity="0.45"/><circle cx="2" cy="18" r="2.8" fill="#9A3412" opacity="0.45"/>` : ''}
+              <!-- Tiny Serrated Chick Comb -->
+              <path d="M7,-27 L10,-34 L14,-28 L18,-34 L20,-26 Z" fill="${chick.comb}" stroke="#1E293B" stroke-width="1.8" stroke-linejoin="round"/>
+              <!-- Conical Chick Beak with Nostril & Glossy Eye -->
+              <polygon points="28,-14 42,-10 28,-6" fill="#F97316" stroke="#1E293B" stroke-width="2" stroke-linejoin="round"/>
+              <circle cx="19" cy="-14" r="3.4" fill="#0F172A"/>
+              <circle cx="20" cy="-15" r="1.2" fill="#FFFFFF"/>
             </g>
           ` : ''}
 
@@ -1752,11 +2059,11 @@
         `;
       }
 
-      // 6. HUMAN GAMETES (FERTILIZATION)
+      // 6. HUMAN GAMETES (FERTILIZATION & EMBRYONIC CLEAVAGE)
       else if (currentOrg === 'gametes') {
         const rippleR = 66 + Math.sin(time * 3.2) * 4;
         const nucleiX = lerp(30, 0, state.fuseT);
-        const fusionWaveR = state.fertilized && state.fuseT < 1 ? 66 + state.fuseT * 52 : 0;
+        const fusionWaveR = state.fertilized && state.fuseT < 1 ? 66 + state.fuseT * 56 : 0;
 
         svg.innerHTML = `
           <defs>
@@ -1765,6 +2072,24 @@
               <stop offset="50%" stop-color="#F8FAFC"/>
               <stop offset="100%" stop-color="#FFF1F2"/>
             </linearGradient>
+            <radialGradient id="ovumCytoplasm" cx="38%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#FFF1F2"/>
+              <stop offset="65%" stop-color="#FFE4E6"/>
+              <stop offset="100%" stop-color="#FECDD3"/>
+            </radialGradient>
+            <radialGradient id="blastomereGrad1" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#EEF2FF"/>
+              <stop offset="100%" stop-color="#A5B4FC"/>
+            </radialGradient>
+            <radialGradient id="blastomereGrad2" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#FFF1F2"/>
+              <stop offset="100%" stop-color="#FDA4AF"/>
+            </radialGradient>
+            <radialGradient id="spermHeadGrad" cx="35%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#FFFFFF"/>
+              <stop offset="55%" stop-color="#E0E7FF"/>
+              <stop offset="100%" stop-color="#C7D2FE"/>
+            </radialGradient>
           </defs>
           <rect width="880" height="420" fill="url(#fluidBg)"/>
           <path d="M0,110 Q220,${85 + Math.sin(time * 2) * 18} 440,110 T880,110" fill="none" stroke="#C7D2FE" stroke-width="3" opacity="0.45"/>
@@ -1775,65 +2100,113 @@
             ${renderCalloutTag(200, 65, 'Sperm (n = 23)', 'neutral')}
             ${renderCalloutTag(650, 65, 'Egg (n = 23)', 'neutral')}
           ` : `
-            ${renderCalloutTag(645, 76, state.divideClicks >= 1 ? 'Dividing Embryo (2n = 46)' : 'Zygote (2n = 46)', 'mix')}
+            ${renderCalloutTag(645, 68, state.divideClicks === 0 ? 'Zygote (2n = 46)' : state.divideClicks === 1 ? '2-Cell Embryo (2n)' : '4-Cell Morula Embryo (2n)', 'mix')}
             ${renderDnaVisual(240, 210, 'mix', '23 + 23 = 46')}
           `}
 
-          <!-- Right Ovum / Fertilization Fusion / Dividing Embryo -->
+          <!-- Right Ovum (Corona Radiata Follicle Cells + Zona Pellucida + Cortical Reaction + Cleavage) -->
           <g data-drag="${state.fertilized && state.fuseT >= 0.92 && state.divideClicks < 2 ? 'zygote-cell' : ''}"
              class="${state.fertilized && state.fuseT >= 0.92 && state.divideClicks < 2 ? 'grab-target' : ''}"
              transform="translate(645, 210)">
+            <!-- Cortical Reaction Fertilization Envelope Wave -->
             ${fusionWaveR > 0 ? `
               <circle cx="0" cy="0" r="${fusionWaveR}" fill="none" stroke="#818CF8" stroke-width="5" opacity="${1 - state.fuseT}"/>
               <circle cx="0" cy="0" r="${fusionWaveR * 0.85}" fill="none" stroke="#FB7185" stroke-width="3.5" opacity="${1 - state.fuseT}"/>
             ` : ''}
 
+            <!-- Outer Corona Radiata Follicle Cells (Always surrounds Ovum & Dividing Embryo) -->
+            <g transform="rotate(${time * 5})">
+              ${Array.from({ length: 16 }, (_, k) => {
+                const a = (k * Math.PI * 2) / 16;
+                const dist = rippleR + 17 + (k % 2) * 3;
+                return `<circle cx="${Math.cos(a) * dist}" cy="${Math.sin(a) * dist}" r="7.5" fill="#FFE4E6" stroke="#FDA4AF" stroke-width="1.6" opacity="0.85"/>`;
+              }).join('')}
+            </g>
+
             ${state.divideT < 0.2 ? `
-              <!-- Outer Zona Pellucida Membrane -->
-              <circle cx="0" cy="0" r="${rippleR + 10}" fill="#FFE4E6" fill-opacity="0.35" stroke="#FDA4AF" stroke-width="2" stroke-dasharray="6 5"/>
-              <circle cx="0" cy="0" r="${rippleR}" fill="#FFE4E6" stroke="#F43F5E" stroke-width="4"/>
+              <!-- Translucent Zona Pellucida Ring (Thickens slightly after fertilization to block polyspermy) -->
+              <circle cx="0" cy="0" r="${rippleR + 8}" fill="#FFF1F2" fill-opacity="0.45" stroke="#FB7185" stroke-width="${state.fertilized ? 3.5 : 2.5}"/>
+              <!-- Main Egg Cell Plasma Membrane & Cytoplasm -->
+              <circle cx="0" cy="0" r="${rippleR}" fill="url(#ovumCytoplasm)" stroke="#E11D48" stroke-width="3.8"/>
+              <!-- Cytoplasmic Yolk Granules & Polar Body -->
+              <circle cx="-36" cy="-24" r="4" fill="#FDA4AF" opacity="0.6"/>
+              <circle cx="38" cy="26" r="5" fill="#FDA4AF" opacity="0.6"/>
+              <circle cx="-28" cy="34" r="3.5" fill="#FDA4AF" opacity="0.6"/>
+              <circle cx="0" cy="${-rippleR + 9}" r="6.5" fill="#FECDD3" stroke="#E11D48" stroke-width="1.8"/>
+
               ${!state.fertilized ? `
-                <circle cx="0" cy="0" r="24" fill="#FDA4AF" stroke="#E11D48" stroke-width="2.5"/>
+                <!-- Haploid Egg Nucleus & Chromatin -->
+                <circle cx="0" cy="0" r="24" fill="#FB7185" fill-opacity="0.35" stroke="#E11D48" stroke-width="2.5"/>
+                <path d="M-10,-8 Q0,-14 8,-6 M-8,8 Q2,14 10,6" fill="none" stroke="#9F1239" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
                 <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#881337">23</text>
               ` : `
                 <!-- Entering Sperm Head Merging Into Pronuclei -->
-                ${state.fuseT < 0.75 ? `
-                  <g transform="translate(${lerp(-64, -18, state.fuseT)}, 0) scale(${1 - state.fuseT * 0.4})" opacity="${1 - state.fuseT}">
-                    <path d="M-20,0 Q-48,${Math.sin(time * 18) * 10} -76,0" fill="none" stroke="#4F46E5" stroke-width="4" stroke-linecap="round"/>
-                    <ellipse cx="0" cy="0" rx="20" ry="14" fill="#EEF2FF" stroke="#4F46E5" stroke-width="3"/>
+                ${state.fuseT < 0.78 ? `
+                  <g transform="translate(${lerp(-64, -18, state.fuseT)}, 0) scale(${1 - state.fuseT * 0.35})" opacity="${1 - state.fuseT}">
+                    <path d="M-24,0 Q-48,${Math.sin(time * 18) * 10} -76,0" fill="none" stroke="#4F46E5" stroke-width="3.5" stroke-linecap="round"/>
+                    <ellipse cx="0" cy="0" rx="18" ry="12" fill="url(#spermHeadGrad)" stroke="#4F46E5" stroke-width="2.8"/>
                   </g>
                 ` : ''}
-                <!-- Two Pronuclei (23 + 23) Spiraling & Fusing into One Diploid Nucleus (46) -->
-                <circle cx="${-nucleiX}" cy="${Math.sin(state.fuseT * Math.PI) * -10}" r="${lerp(19, 27, state.fuseT)}" fill="#818CF8" opacity="0.88"/>
-                <circle cx="${nucleiX}" cy="${Math.sin(state.fuseT * Math.PI) * 10}" r="${lerp(19, 27, state.fuseT)}" fill="#FB7185" opacity="0.88"/>
-                <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#1E293B">
+                <!-- Two Pronuclei (23 + 23) Spiraling & Fusing into One Diploid Zygote Nucleus (46) -->
+                <circle cx="${-nucleiX}" cy="${Math.sin(state.fuseT * Math.PI) * -10}" r="${lerp(19, 27, state.fuseT)}" fill="#818CF8" stroke="#312E81" stroke-width="1.8" opacity="0.88"/>
+                <circle cx="${nucleiX}" cy="${Math.sin(state.fuseT * Math.PI) * 10}" r="${lerp(19, 27, state.fuseT)}" fill="#FB7185" stroke="#881337" stroke-width="1.8" opacity="0.88"/>
+                <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#0F172A">
                   ${state.fuseT > 0.78 ? '46' : '23+23'}
                 </text>
               `}
             ` : `
-              <circle cx="0" cy="0" r="${72 + Math.sin(time * 4) * 2}" fill="#EEF2FF" stroke="#6366F1" stroke-width="4"/>
-              <circle cx="-22" cy="-18" r="24" fill="#C7D2FE" stroke="#4F46E5" stroke-width="3"/>
-              <circle cx="22" cy="-18" r="24" fill="#FECDD3" stroke="#E11D48" stroke-width="3"/>
-              ${state.divideT > 0.72 ? `
-                <circle cx="-22" cy="22" r="24" fill="#FDE68A" stroke="#D97706" stroke-width="3"/>
-                <circle cx="22" cy="22" r="24" fill="#A7F3D0" stroke="#059669" stroke-width="3"/>
-              ` : ''}
-              <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#0F172A">46</text>
+              <!-- Dividing Blastomeres Inside Zona Pellucida (2-Cell Stage -> 4-Cell Morula Stage) -->
+              <circle cx="0" cy="0" r="${rippleR + 8}" fill="#FFF1F2" fill-opacity="0.55" stroke="#FB7185" stroke-width="3.5"/>
+              <circle cx="0" cy="${-rippleR + 8}" r="5.5" fill="#FECDD3" stroke="#E11D48" stroke-width="1.6"/>
+              ${state.divideT <= 0.72 ? `
+                <!-- 2-Cell Cleavage Stage (2 Diploid Blastomeres with Visible Nuclei) -->
+                <g transform="translate(${-25 - Math.sin(time * 3) * 1.5}, 0)">
+                  <circle cx="0" cy="0" r="32" fill="url(#blastomereGrad1)" stroke="#4338CA" stroke-width="3"/>
+                  <circle cx="0" cy="0" r="11" fill="#6366F1" fill-opacity="0.45" stroke="#312E81" stroke-width="1.5"/>
+                  <text x="0" y="4" text-anchor="middle" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#1E1B4B">46</text>
+                </g>
+                <g transform="translate(${25 + Math.sin(time * 3) * 1.5}, 0)">
+                  <circle cx="0" cy="0" r="32" fill="url(#blastomereGrad2)" stroke="#BE123C" stroke-width="3"/>
+                  <circle cx="0" cy="0" r="11" fill="#F43F5E" fill-opacity="0.45" stroke="#881337" stroke-width="1.5"/>
+                  <text x="0" y="4" text-anchor="middle" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#881337">46</text>
+                </g>
+              ` : `
+                <!-- 4-Cell Embryo Cleavage Stage (4 Diploid Blastomeres with Visible Nuclei) -->
+                ${[
+                  { x: -22, y: -21, grad: 'url(#blastomereGrad1)', stroke: '#4338CA', nuc: '#6366F1' },
+                  { x: 22, y: -21, grad: 'url(#blastomereGrad2)', stroke: '#BE123C', nuc: '#F43F5E' },
+                  { x: -22, y: 21, grad: 'url(#blastomereGrad2)', stroke: '#BE123C', nuc: '#F43F5E' },
+                  { x: 22, y: 21, grad: 'url(#blastomereGrad1)', stroke: '#4338CA', nuc: '#6366F1' }
+                ].map((b, bi) => `
+                  <g transform="translate(${b.x + Math.cos(time * 3 + bi) * 1.2}, ${b.y + Math.sin(time * 3 + bi) * 1.2})">
+                    <circle cx="0" cy="0" r="24" fill="${b.grad}" stroke="${b.stroke}" stroke-width="2.8"/>
+                    <circle cx="0" cy="0" r="9" fill="${b.nuc}" fill-opacity="0.45" stroke="#1E293B" stroke-width="1.2"/>
+                    <text x="0" y="3.5" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" font-weight="700" fill="#0F172A">46</text>
+                  </g>
+                `).join('')}
+              `}
             `}
           </g>
 
-          <!-- Swimming Sperm Cells with Sinuous Flagella -->
+          <!-- Anatomical Human Spermatozoa (Acrosome Cap, Oval Head, Mitochondrial Midpiece & Tapering Flagellum) -->
           ${!state.fertilized ? state.sperms.map((sp, i) => {
-            const w1 = Math.sin(time * 13 + i * 1.7) * 11;
+            const w1 = Math.sin(time * 13 + i * 1.7) * 10;
             const w2 = Math.cos(time * 13 + i * 1.7) * 13;
             const swimAngle = Math.cos(time * 2.6 + sp.phase) * 7;
             return `
               <g data-drag="sperm-${i}" class="grab-target" transform="translate(${sp.x}, ${sp.y}) rotate(${swimAngle})">
-                <circle cx="-22" cy="0" r="44" fill="#6366F1" fill-opacity="0"/>
-                <path d="M-24,0 Q-44,${w1} -64,0 T-104,${w2}" fill="none" stroke="#4F46E5" stroke-width="4.5" stroke-linecap="round"/>
-                <ellipse cx="-26" cy="0" rx="6" ry="5" fill="#818CF8"/>
-                <ellipse cx="0" cy="0" rx="25" ry="17" fill="#EEF2FF" stroke="#4F46E5" stroke-width="3.5"/>
-                <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#312E81">23</text>
+                <circle cx="-28" cy="0" r="46" fill="#6366F1" fill-opacity="0"/>
+                <!-- Tapering Sinuous Flagellum Tail -->
+                <path d="M-36,0 Q-56,${w1} -76,0 T-116,${w2}" fill="none" stroke="#4F46E5" stroke-width="3.6" stroke-linecap="round"/>
+                <path d="M-36,0 Q-52,${w1 * 0.85} -68,0" fill="none" stroke="#6366F1" stroke-width="5" stroke-linecap="round"/>
+                <!-- Mitochondrial Midpiece -->
+                <rect x="-37" y="-5" width="16" height="10" rx="5" fill="#818CF8" stroke="#312E81" stroke-width="2"/>
+                <line x1="-32" y1="-4" x2="-32" y2="4" stroke="#312E81" stroke-width="1.4"/>
+                <line x1="-26" y1="-4" x2="-26" y2="4" stroke="#312E81" stroke-width="1.4"/>
+                <!-- Streamlined Sperm Head & Anterior Acrosome Cap -->
+                <ellipse cx="0" cy="0" rx="23" ry="14.5" fill="url(#spermHeadGrad)" stroke="#312E81" stroke-width="3"/>
+                <path d="M8,-13.5 C18,-10 23,-5 23,0 C23,5 18,10 8,13.5 C12,5 12,-5 8,-13.5 Z" fill="#6366F1" opacity="0.45"/>
+                <text x="-2" y="4.5" text-anchor="middle" font-family="JetBrains Mono" font-size="12" font-weight="700" fill="#1E1B4B">23</text>
               </g>
             `;
           }).join('') : ''}
