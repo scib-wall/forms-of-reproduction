@@ -90,6 +90,12 @@
     .grab-target:active {
       cursor: grabbing;
     }
+    .cursor-sparkle {
+      cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><circle cx='16' cy='16' r='11' fill='%23FBBF24' fill-opacity='0.35'/><path d='M16 4L18.5 13.5L28 16L18.5 18.5L16 28L13.5 18.5L4 16L13.5 13.5Z' fill='%23F59E0B' stroke='%23FFFFFF' stroke-width='1.5'/></svg>") 16 16, pointer !important;
+    }
+    .cursor-active-hand {
+      cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><circle cx='16' cy='16' r='12' fill='%2310B981' fill-opacity='0.35'/><circle cx='16' cy='16' r='6' fill='%2310B981' stroke='%23FFFFFF' stroke-width='2'/></svg>") 16 16, grabbing !important;
+    }
 
     .btn-pill {
       border-radius: 9999px;
@@ -452,9 +458,14 @@
 
     const exploreStage = document.getElementById('explore-stage');
     let dragInfo = null;
+    let hoveredTarget = null;
+    let pointerPos = { x: -100, y: -100, active: false };
 
     function clamp(v, min = 0, max = 1) { return Math.max(min, Math.min(max, v)); }
     function lerp(a, b, t) { return a + (b - a) * t; }
+    function damp(current, target, lambda, dt) {
+      return lerp(current, target, 1 - Math.exp(-lambda * dt));
+    }
     function easeOutBack(t) {
       const c1 = 1.70158;
       const c3 = c1 + 1;
@@ -645,49 +656,69 @@
         tag.className = 'px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] uppercase tracking-wider';
       }
 
+      // Always reset the interactive stage back to Step 1 so students can replay & manipulate repeatedly
+      dragInfo = null;
+      fxParticles = [];
       document.getElementById('discovery-overlay').classList.add('hidden');
       document.getElementById('btn-breed-again').classList.toggle('hidden', id !== 'fowl');
       resetClues();
       updateProgressHeader();
 
       if (id === 'hydra') {
-        state = { growth: 0, readyToDetach: false, detached: false, budX: 352, budY: 245, settleT: 0 };
-        setPrompt('Rub the small bud on the Hydra to grow it!');
+        state = {
+          growth: 0, visualGrowth: 0, readyToDetach: false, detached: false,
+          budX: 352, budY: 245, targetBudX: 352, targetBudY: 245,
+          stretch: 0, settleT: 0,
+          nutrients: [
+            { x: 145, y: 125, tx: 145, ty: 125, used: false, phase: 0.3 },
+            { x: 185, y: 215, tx: 185, ty: 215, used: false, phase: 2.1 }
+          ]
+        };
+        setPrompt('Feed glowing nutrient bubbles to the Hydra or rub its bud!');
       } else if (id === 'seastar') {
         state = {
           sliced: false, splitT: 0, bladeTrail: [],
-          leftRegen: 0, rightRegen: 0,
-          droplets: [{ x: 130, y: 120, used: false }, { x: 750, y: 120, used: false }]
+          leftRegen: 0, rightRegen: 0, regenDone: false,
+          droplets: [
+            { x: 130, y: 120, tx: 130, ty: 120, used: false },
+            { x: 750, y: 120, tx: 750, ty: 120, used: false }
+          ]
         };
         setPrompt('Swipe across the dashed line to slice the Sea Star!');
       } else if (id === 'lizard') {
         state = {
-          rubProgress: 0, eggsLaid: false, warm: 0, hatched: false, wobble: 0, scurryT: 0,
+          rubProgress: 0, visualRub: 0, eggsLaid: false, layT: 0, warm: 0, hatched: false, wobble: 0, scurryT: 0,
           eggs: [{ x: 525, y: 282, tx: 525, ty: 265 }, { x: 580, y: 286, tx: 580, ty: 268 }],
-          sun: { x: 755, y: 95 }
+          sun: { x: 755, y: 95, tx: 755, ty: 95 }
         };
         setPrompt('Rub the female Whiptail Lizard to lay eggs!');
       } else if (id === 'plant') {
         state = {
-          mist: { x: 145, y: 125, used: false },
+          mist: { x: 145, y: 125, tx: 145, ty: 125, used: false },
           sproutT: 0,
-          pup: { x: 355, y: 190, planted: false, growT: 0 }
+          pup: { x: 355, y: 190, tx: 355, ty: 190, planted: false, growT: 0 },
+          sunDrop: { x: 765, y: 105, tx: 765, ty: 105, used: false }
         };
         setPrompt('Drag the water droplet onto the Air Plant leaf!');
       } else if (id === 'fowl') {
         state = {
-          roosterOrb: { x: 240, y: 155, inNest: false },
-          henOrb: { x: 640, y: 155, inNest: false },
-          swirlT: 0, eggReady: false, hatched: false,
+          roosterOrb: { x: 240, y: 155, tx: 240, ty: 155, inNest: false },
+          henOrb: { x: 640, y: 155, tx: 640, ty: 155, inNest: false },
+          swirlT: 0, eggReady: false, crackClicks: 0, hatched: false, hatchT: 0,
           variantIdx: Math.floor(Math.random() * CHICK_VARIANTS.length)
         };
         setPrompt('Drag both parent orbs (♂ n and ♀ n) into the nest!');
       } else if (id === 'gametes') {
         state = {
-          sperms: [{ x: 200, y: 145 }, { x: 175, y: 215 }, { x: 205, y: 285 }],
-          fertilized: false, fuseT: 0, divideT: 0
+          sperms: [
+            { x: 200, y: 145, tx: 200, ty: 145, baseY: 145, phase: 0.4 },
+            { x: 175, y: 215, tx: 175, ty: 215, baseY: 215, phase: 2.1 },
+            { x: 205, y: 285, tx: 205, ty: 285, baseY: 285, phase: 4.0 }
+          ],
+          activeSpermIdx: 0,
+          fertilized: false, fuseT: 0, divideT: 0, divideClicks: 0
         };
-        setPrompt('Drag a sperm cell (23) into the egg cell (23)!');
+        setPrompt('Drag a swimming sperm cell (23) into the egg cell (23)!');
       }
     }
 
@@ -728,183 +759,314 @@
       exploreStage.setPointerCapture(e.pointerId);
 
       if (currentOrg === 'fowl' && dragId === 'fowl-egg' && state.eggReady && !state.hatched) {
-        state.hatched = true;
-        spawnBurst(440, 240, '#6366F1', 18);
-        openDiscoveryCheck();
+        state.crackClicks = (state.crackClicks || 0) + 1;
+        spawnBurst(440, 242, '#FBBF24', 10);
+        if (state.crackClicks >= 2) {
+          state.hatched = true;
+          spawnBurst(440, 240, '#6366F1', 22);
+          openDiscoveryCheck();
+        } else {
+          setPrompt('Tap the cracking egg once more to hatch!');
+        }
+      } else if (currentOrg === 'gametes' && dragId === 'zygote-cell' && state.fertilized && state.fuseT >= 0.92 && state.divideClicks < 2) {
+        state.divideClicks += 1;
+        spawnBurst(645, 210, '#818CF8', 14);
+        if (state.divideClicks === 1) {
+          setPrompt('Tap the dividing zygote once more to form a 4-cell embryo!');
+        } else {
+          openDiscoveryCheck();
+        }
       }
+      updateStageCursor();
     });
 
+    function updateStageCursor() {
+      exploreStage.classList.remove('cursor-sparkle', 'cursor-active-hand');
+      if (dragInfo) {
+        exploreStage.classList.add('cursor-active-hand');
+      } else if (hoveredTarget) {
+        exploreStage.classList.add('cursor-sparkle');
+      }
+    }
+
     exploreStage.addEventListener('pointermove', e => {
-      if (!dragInfo) return;
       const p = toSvgCoords(e);
-      const dx = p.x - dragInfo.lastX;
-      const dy = p.y - dragInfo.lastY;
-      const dist = Math.hypot(dx, dy);
+      pointerPos = { x: p.x, y: p.y, active: true };
+
+      if (!dragInfo) {
+        const hoverEl = e.target.closest('[data-drag]');
+        const hid = hoverEl ? hoverEl.getAttribute('data-drag') : null;
+        const isBladeArea = currentOrg === 'seastar' && !state.sliced && Math.hypot(p.x - 440, p.y - 210) < 115;
+        hoveredTarget = hid || (isBladeArea ? 'blade' : null);
+        updateStageCursor();
+        return;
+      }
+
+      const dist = Math.hypot(p.x - dragInfo.lastX, p.y - dragInfo.lastY);
       dragInfo.lastX = p.x;
       dragInfo.lastY = p.y;
 
-      if (currentOrg === 'hydra' && dragInfo.id === 'hydra-bud') {
-        if (!state.readyToDetach) {
-          state.growth = clamp(state.growth + dist * 0.0055);
+      if (currentOrg === 'hydra') {
+        if (dragInfo.id && dragInfo.id.startsWith('hydra-food-') && !state.readyToDetach) {
+          const fIdx = Number(dragInfo.id.split('-')[2]);
+          const food = state.nutrients[fIdx];
+          if (food && !food.used) {
+            food.tx = clamp(p.x, 60, 820);
+            food.ty = clamp(p.y, 50, 360);
+            if (Math.hypot(food.x - 335, food.y - 210) < 95) {
+              food.used = true;
+              state.growth = clamp(state.growth + 0.52);
+              spawnBurst(345, 225, '#34D399', 16);
+              if (state.growth >= 1) {
+                state.readyToDetach = true;
+                unlockClue(1, '1 Parent', 'clone');
+                setPrompt('Drag the full-grown bud away from the parent Hydra!');
+                spawnBurst(state.budX, state.budY, '#10B981', 16);
+              }
+            }
+          }
+        } else if (dragInfo.id === 'hydra-bud' && !state.readyToDetach) {
+          state.growth = clamp(state.growth + dist * 0.0034);
+          if (Math.random() < 0.32 && dist > 1.5) spawnBurst(p.x, p.y, '#34D399', 2);
           if (state.growth >= 1) {
             state.readyToDetach = true;
             unlockClue(1, '1 Parent', 'clone');
-            setPrompt('Now drag the full-grown bud away to detach it!');
-            spawnBurst(365, 235, '#10B981', 12);
+            setPrompt('Drag the full-grown bud away from the parent Hydra!');
+            spawnBurst(state.budX, state.budY, '#10B981', 16);
           }
-        } else if (!state.detached) {
-          state.budX = clamp(p.x, 355, 620);
-          state.budY = clamp(p.y, 180, 338);
-          if (state.budX > 465) {
+        } else if (dragInfo.id === 'hydra-bud' && state.readyToDetach && !state.detached) {
+          state.targetBudX = clamp(p.x, 352, 620);
+          state.targetBudY = clamp(p.y, 175, 345);
+          if (state.budX > 485) {
             state.detached = true;
-            state.budX = 555;
-            state.budY = 338;
-            spawnBurst(555, 295, '#10B981', 18);
+            spawnBurst(state.budX, state.budY, '#10B981', 20);
             openDiscoveryCheck();
           }
         }
       } else if (currentOrg === 'seastar') {
         if (dragInfo.id === 'blade' && !state.sliced) {
           state.bladeTrail.push({ x: p.x, y: p.y });
-          if (state.bladeTrail.length > 18) state.bladeTrail.shift();
-          const ys = state.bladeTrail.map(pt => pt.y);
-          const crossesX = state.bladeTrail.some(pt => Math.abs(pt.x - 454) < 38);
-          if (crossesX && Math.max(...ys) - Math.min(...ys) > 120) {
+          if (state.bladeTrail.length > 14) state.bladeTrail.shift();
+          const nearCenterX = Math.abs(p.x - 440) < 55;
+          const acrossBodyY = p.y > 110 && p.y < 310;
+          if (nearCenterX && acrossBodyY && state.bladeTrail.length >= 4) {
             state.sliced = true;
+            state.bladeTrail = [];
             unlockClue(1, '1 Parent', 'clone');
-            setPrompt('Drag a water droplet onto each piece to regrow arms!');
-            spawnBurst(440, 215, '#38BDF8', 18);
+            setPrompt('Drag a water droplet onto each split piece to regrow arms!');
+            spawnBurst(440, 210, '#F472B6', 22);
+            spawnBurst(440, 210, '#FFFFFF', 12);
           }
-        } else if (dragInfo.id.startsWith('drop-') && state.sliced) {
-          const idx = Number(dragInfo.id.split('-')[1]);
-          const drop = state.droplets[idx];
+        } else if (dragInfo.id && dragInfo.id.startsWith('drop-') && state.sliced) {
+          const dIdx = Number(dragInfo.id.split('-')[1]);
+          const drop = state.droplets[dIdx];
           if (drop && !drop.used) {
-            drop.x = clamp(p.x, 60, 820);
-            drop.y = clamp(p.y, 50, 370);
+            drop.tx = clamp(p.x, 60, 820);
+            drop.ty = clamp(p.y, 50, 360);
             if (Math.hypot(drop.x - 275, drop.y - 215) < 85 && state.leftRegen === 0) {
               drop.used = true;
-              state.leftRegen = 0.05;
-              spawnBurst(275, 215, '#F472B6', 14);
+              state.leftRegen = 0.04;
+              spawnBurst(275, 215, '#38BDF8', 16);
+              spawnBurst(275, 215, '#F472B6', 12);
             } else if (Math.hypot(drop.x - 605, drop.y - 215) < 85 && state.rightRegen === 0) {
               drop.used = true;
-              state.rightRegen = 0.05;
-              spawnBurst(605, 215, '#F472B6', 14);
+              state.rightRegen = 0.04;
+              spawnBurst(605, 215, '#38BDF8', 16);
+              spawnBurst(605, 215, '#F472B6', 12);
             }
           }
         }
       } else if (currentOrg === 'lizard') {
         if (dragInfo.id === 'lizard-belly' && !state.eggsLaid) {
-          state.rubProgress = clamp(state.rubProgress + dist * 0.006);
+          state.rubProgress = clamp(state.rubProgress + dist * 0.0032);
+          if (Math.random() < 0.3 && dist > 1.5) spawnBurst(p.x, p.y, '#FBBF24', 2);
           if (state.rubProgress >= 1) {
             state.eggsLaid = true;
             unlockClue(1, '1 Female Only', 'clone');
-            setPrompt('Drag the warm sunbeam over the eggs to hatch them!');
-            spawnBurst(552, 282, '#FBBF24', 14);
+            setPrompt('Drag the glowing sun over the eggs to warm & hatch them!');
+            spawnBurst(552, 282, '#FBBF24', 16);
           }
         } else if (dragInfo.id === 'sunbeam' && state.eggsLaid && !state.hatched) {
-          state.sun.x = clamp(p.x, 80, 800);
-          state.sun.y = clamp(p.y, 60, 340);
-          if (Math.hypot(state.sun.x - 552, state.sun.y - 275) < 110) {
-            state.warm = clamp(state.warm + 0.032);
-            state.wobble += 0.05;
+          state.sun.tx = clamp(p.x, 80, 800);
+          state.sun.ty = clamp(p.y, 60, 340);
+          if (Math.hypot(state.sun.x - 552, state.sun.y - 275) < 120) {
+            state.warm = clamp(state.warm + 0.016);
+            state.wobble += 0.045;
+            if (Math.random() < 0.25) spawnBurst(552 + (Math.random() - 0.5) * 60, 275, '#FDE047', 2);
             if (state.warm >= 1) {
               state.hatched = true;
-              spawnBurst(552, 270, '#10B981', 18);
+              spawnBurst(552, 270, '#10B981', 20);
+              spawnBurst(552, 270, '#FFFBEB', 12);
               openDiscoveryCheck();
             }
           }
         }
       } else if (currentOrg === 'plant') {
         if (dragInfo.id === 'mist-drop' && !state.mist.used) {
-          state.mist.x = clamp(p.x, 60, 820);
-          state.mist.y = clamp(p.y, 50, 360);
+          state.mist.tx = clamp(p.x, 60, 820);
+          state.mist.ty = clamp(p.y, 50, 360);
           if (Math.hypot(state.mist.x - 275, state.mist.y - 215) < 95) {
             state.mist.used = true;
-            state.sproutT = 0.05;
+            state.sproutT = 0.04;
             unlockClue(1, '1 Parent Leaf', 'clone');
             setPrompt('Drag the baby plantlet into the soil pot!');
-            spawnBurst(330, 195, '#38BDF8', 14);
+            spawnBurst(330, 195, '#38BDF8', 18);
+            spawnBurst(310, 205, '#BAE6FD', 12);
           }
-        } else if (dragInfo.id === 'plant-pup' && state.sproutT >= 0.9 && !state.pup.planted) {
-          state.pup.x = clamp(p.x, 120, 780);
-          state.pup.y = clamp(p.y, 70, 340);
+        } else if (dragInfo.id === 'plant-pup' && state.sproutT >= 0.85 && !state.pup.planted) {
+          state.pup.tx = clamp(p.x, 120, 780);
+          state.pup.ty = clamp(p.y, 70, 340);
           if (Math.hypot(state.pup.x - 630, state.pup.y - 255) < 85) {
-            state.pup.x = 630;
-            state.pup.y = 256;
+            state.pup.tx = 630;
+            state.pup.ty = 256;
             state.pup.planted = true;
             spawnBurst(630, 240, '#10B981', 18);
+            setPrompt('Drag the glowing sun orb over the potted plantlet to grow roots!');
+          }
+        } else if (dragInfo.id === 'plant-sun' && state.pup.planted && !state.sunDrop.used) {
+          state.sunDrop.tx = clamp(p.x, 80, 800);
+          state.sunDrop.ty = clamp(p.y, 60, 340);
+          if (Math.hypot(state.sunDrop.x - 630, state.sunDrop.y - 205) < 95) {
+            state.sunDrop.used = true;
+            spawnBurst(630, 210, '#FBBF24', 20);
             openDiscoveryCheck();
           }
         }
       } else if (currentOrg === 'fowl') {
         if (dragInfo.id === 'orb-rooster' && !state.roosterOrb.inNest) {
-          state.roosterOrb.x = clamp(p.x, 70, 810);
-          state.roosterOrb.y = clamp(p.y, 60, 340);
+          state.roosterOrb.tx = clamp(p.x, 70, 810);
+          state.roosterOrb.ty = clamp(p.y, 60, 340);
           if (Math.hypot(state.roosterOrb.x - 440, state.roosterOrb.y - 270) < 85) {
             state.roosterOrb.inNest = true;
-            spawnBurst(440, 260, '#6366F1', 12);
+            spawnBurst(440, 260, '#6366F1', 14);
           }
         } else if (dragInfo.id === 'orb-hen' && !state.henOrb.inNest) {
-          state.henOrb.x = clamp(p.x, 70, 810);
-          state.henOrb.y = clamp(p.y, 60, 340);
+          state.henOrb.tx = clamp(p.x, 70, 810);
+          state.henOrb.ty = clamp(p.y, 60, 340);
           if (Math.hypot(state.henOrb.x - 440, state.henOrb.y - 270) < 85) {
             state.henOrb.inNest = true;
-            spawnBurst(440, 260, '#EC4899', 12);
+            spawnBurst(440, 260, '#EC4899', 14);
           }
         }
         if (state.roosterOrb.inNest && state.henOrb.inNest && state.swirlT === 0) {
           state.swirlT = 0.02;
           unlockClue(1, '2 Parents (♂ + ♀)', 'mix');
-          setPrompt('Tap the fertilized egg (2n) to hatch the chick!');
+          setPrompt('Tap the fertilized egg (2n) twice to crack & hatch!');
         }
       } else if (currentOrg === 'gametes' && dragInfo.id.startsWith('sperm-') && !state.fertilized) {
         const idx = Number(dragInfo.id.split('-')[1]);
+        state.activeSpermIdx = idx;
         const sp = state.sperms[idx];
         if (sp) {
-          sp.x = clamp(p.x, 80, 800);
-          sp.y = clamp(p.y, 60, 360);
+          sp.tx = clamp(p.x, 80, 800);
+          sp.ty = clamp(p.y, 60, 360);
           if (Math.hypot(sp.x - 645, sp.y - 210) < 75) {
             state.fertilized = true;
             unlockClue(1, '2 Parents (23 + 23)', 'mix');
-            spawnBurst(645, 210, '#6366F1', 20);
-            openDiscoveryCheck();
+            spawnBurst(645, 210, '#6366F1', 22);
+            spawnBurst(645, 210, '#FB7185', 16);
+            setPrompt('Watch the nuclei fuse, then tap the Zygote to divide!');
           }
         }
       }
     });
 
-    exploreStage.addEventListener('pointerup', () => { dragInfo = null; });
-    exploreStage.addEventListener('pointercancel', () => { dragInfo = null; });
+    exploreStage.addEventListener('pointerup', () => {
+      if (currentOrg === 'seastar') state.bladeTrail = [];
+      dragInfo = null;
+      updateStageCursor();
+    });
+    exploreStage.addEventListener('pointercancel', () => {
+      dragInfo = null;
+      updateStageCursor();
+    });
+    exploreStage.addEventListener('pointerleave', () => {
+      pointerPos.active = false;
+      hoveredTarget = null;
+      updateStageCursor();
+    });
 
     function updateExplorePhysics(dt) {
       fxParticles.forEach(fp => {
         fp.x += fp.vx * dt;
         fp.y += fp.vy * dt;
-        fp.life -= dt * 1.4;
+        fp.life -= dt * 1.25;
       });
       fxParticles = fxParticles.filter(fp => fp.life > 0);
 
-      if (currentOrg === 'hydra' && state.detached && state.settleT < 1) {
-        state.settleT = clamp(state.settleT + dt * 2.2);
+      if (currentOrg === 'hydra') {
+        state.visualGrowth = damp(state.visualGrowth, state.growth, 8, dt);
+        state.nutrients.forEach(n => {
+          n.x = damp(n.x, n.tx, 11, dt);
+          n.y = damp(n.y, n.ty, 11, dt);
+        });
+        if (!state.detached) {
+          const restX = 352 + Math.sin(time * 2.1) * 2;
+          const restY = 245;
+          const tx = state.readyToDetach ? state.targetBudX : restX;
+          const ty = state.readyToDetach ? state.targetBudY : restY;
+          state.budX = damp(state.budX, tx, 10, dt);
+          state.budY = damp(state.budY, ty, 10, dt);
+          state.stretch = damp(state.stretch, clamp((state.budX - restX) / 145), 12, dt);
+        } else {
+          state.budX = damp(state.budX, 555, 7, dt);
+          state.budY = damp(state.budY, 338, 7, dt);
+          if (state.settleT < 1) state.settleT = clamp(state.settleT + dt * 1.35);
+        }
       } else if (currentOrg === 'seastar') {
-        if (state.sliced && state.splitT < 1) state.splitT = clamp(state.splitT + dt * 2.2);
-        if (state.leftRegen > 0 && state.leftRegen < 1) state.leftRegen = clamp(state.leftRegen + dt * 1.6);
-        if (state.rightRegen > 0 && state.rightRegen < 1) state.rightRegen = clamp(state.rightRegen + dt * 1.6);
+        state.droplets.forEach(d => {
+          d.x = damp(d.x, d.tx, 12, dt);
+          d.y = damp(d.y, d.ty, 12, dt);
+        });
+        if (state.sliced && state.splitT < 1) state.splitT = clamp(state.splitT + dt * 1.35);
+        if (state.leftRegen > 0 && state.leftRegen < 1) state.leftRegen = clamp(state.leftRegen + dt * 1.05);
+        if (state.rightRegen > 0 && state.rightRegen < 1) state.rightRegen = clamp(state.rightRegen + dt * 1.05);
         if (state.leftRegen >= 1 && state.rightRegen >= 1 && !state.regenDone) {
           state.regenDone = true;
           openDiscoveryCheck();
         }
-      } else if (currentOrg === 'lizard' && state.hatched && state.scurryT < 1) {
-        state.scurryT = clamp(state.scurryT + dt * 2.2);
+      } else if (currentOrg === 'lizard') {
+        state.visualRub = damp(state.visualRub, state.rubProgress, 8, dt);
+        if (state.eggsLaid && state.layT < 1) state.layT = clamp(state.layT + dt * 2.2);
+        state.sun.x = damp(state.sun.x, state.sun.tx, 11, dt);
+        state.sun.y = damp(state.sun.y, state.sun.ty, 11, dt);
+        if (state.hatched && state.scurryT < 1) state.scurryT = clamp(state.scurryT + dt * 1.35);
       } else if (currentOrg === 'plant') {
-        if (state.sproutT > 0 && state.sproutT < 1) state.sproutT = clamp(state.sproutT + dt * 1.8);
-        if (state.pup.planted && state.pup.growT < 1) state.pup.growT = clamp(state.pup.growT + dt * 1.8);
-      } else if (currentOrg === 'fowl' && state.swirlT > 0 && !state.eggReady) {
-        state.swirlT = clamp(state.swirlT + dt * 1.6);
-        if (state.swirlT >= 1) state.eggReady = true;
-      } else if (currentOrg === 'gametes' && state.fertilized) {
-        if (state.fuseT < 1) state.fuseT = clamp(state.fuseT + dt * 1.6);
-        else if (state.divideT < 1) state.divideT = clamp(state.divideT + dt * 0.9);
+        state.mist.x = damp(state.mist.x, state.mist.tx, 12, dt);
+        state.mist.y = damp(state.mist.y, state.mist.ty, 12, dt);
+        state.sunDrop.x = damp(state.sunDrop.x, state.sunDrop.tx, 11, dt);
+        state.sunDrop.y = damp(state.sunDrop.y, state.sunDrop.ty, 11, dt);
+        if (state.sproutT > 0 && state.sproutT < 1) state.sproutT = clamp(state.sproutT + dt * 1.15);
+        if (state.sproutT >= 0.85) {
+          state.pup.x = damp(state.pup.x, state.pup.tx, 10, dt);
+          state.pup.y = damp(state.pup.y, state.pup.ty, 10, dt);
+        }
+        if (state.sunDrop.used && state.pup.growT < 1) state.pup.growT = clamp(state.pup.growT + dt * 1.25);
+      } else if (currentOrg === 'fowl') {
+        state.roosterOrb.x = damp(state.roosterOrb.x, state.roosterOrb.tx, 11, dt);
+        state.roosterOrb.y = damp(state.roosterOrb.y, state.roosterOrb.ty, 11, dt);
+        state.henOrb.x = damp(state.henOrb.x, state.henOrb.tx, 11, dt);
+        state.henOrb.y = damp(state.henOrb.y, state.henOrb.ty, 11, dt);
+        if (state.swirlT > 0 && !state.eggReady) {
+          state.swirlT = clamp(state.swirlT + dt * 1.05);
+          if (state.swirlT >= 1) state.eggReady = true;
+        }
+        if (state.hatched && state.hatchT < 1) state.hatchT = clamp(state.hatchT + dt * 1.8);
+      } else if (currentOrg === 'gametes') {
+        state.sperms.forEach((sp, i) => {
+          const isBeingDragged = dragInfo && dragInfo.id === `sperm-${i}`;
+          if (!isBeingDragged) {
+            sp.ty = sp.baseY + Math.sin(time * 2.6 + sp.phase) * 14;
+            sp.tx = (i === 1 ? 175 : 202) + Math.cos(time * 2.1 + sp.phase) * 18;
+          }
+          sp.x = damp(sp.x, sp.tx, 10, dt);
+          sp.y = damp(sp.y, sp.ty, 10, dt);
+        });
+        if (state.fertilized) {
+          if (state.fuseT < 1) state.fuseT = clamp(state.fuseT + dt * 0.95);
+          const targetDivide = state.divideClicks === 0 ? 0 : state.divideClicks === 1 ? 0.5 : 1;
+          state.divideT = damp(state.divideT, targetDivide, 6, dt);
+        }
       }
     }
 
@@ -961,9 +1123,17 @@
     }
 
     function renderParticlesLayer() {
-      return fxParticles.map(fp => `
+      const particles = fxParticles.map(fp => `
         <circle cx="${fp.x}" cy="${fp.y}" r="${fp.size * fp.life}" fill="${fp.color}" opacity="${fp.life}" pointer-events="none"/>
       `).join('');
+      const contactHalo = pointerPos.active && (hoveredTarget || dragInfo) ? `
+        <g transform="translate(${pointerPos.x}, ${pointerPos.y})" pointer-events="none">
+          <circle cx="0" cy="0" r="${dragInfo ? 22 + Math.sin(time * 12) * 3 : 18 + Math.sin(time * 7) * 3}"
+            fill="${dragInfo ? '#10B981' : '#FBBF24'}" fill-opacity="${dragInfo ? 0.25 : 0.22}"
+            stroke="${dragInfo ? '#059669' : '#F59E0B'}" stroke-width="2" stroke-dasharray="4 3"/>
+        </g>
+      ` : '';
+      return particles + contactHalo;
     }
 
     function drawHydra(x, y, scale, sway, color, stroke) {
@@ -994,133 +1164,193 @@
       if (currentOrg === 'hydra') {
         const budScale = state.detached
           ? lerp(0.64, 0.92, easeOutBack(state.settleT))
-          : lerp(0.22, 0.64, state.growth);
-        const budAngle = state.detached ? lerp(42, 0, easeOutBack(state.settleT)) : 52;
-        const bx = state.detached ? state.budX : 352 + sway * 0.4;
-        const by = state.detached ? state.budY : 245;
+          : lerp(0.22, 0.64, state.visualGrowth);
+        const budAngle = state.detached
+          ? lerp(42, 0, easeOutBack(state.settleT))
+          : lerp(52, 22, state.stretch);
+        const bx = state.budX;
+        const by = state.budY;
         const fishX1 = ((time * 48) % 1020) - 70;
         const fishX2 = 950 - ((time * 34) % 1020);
-        const bobBud = state.readyToDetach && !state.detached ? Math.sin(time * 6) * 3 : 0;
+        const bobBud = state.readyToDetach && !state.detached && !dragInfo ? Math.sin(time * 5) * 2.5 : 0;
+        const stalkAnchorX = 351 + sway * 0.4;
+        const stalkAnchorY = 246;
+        const showTether = !state.detached && state.stretch > 0.03;
 
         svg.innerHTML = `
           <defs>
             <linearGradient id="waterBg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#E0F2FE"/>
-              <stop offset="100%" stop-color="#BAE6FD"/>
+              <stop offset="65%" stop-color="#BAE6FD"/>
+              <stop offset="100%" stop-color="#7DD3FC"/>
+            </linearGradient>
+            <linearGradient id="sunShaft" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <rect width="880" height="420" fill="url(#waterBg)"/>
-          <polygon points="120,0 210,0 320,420 180,420" fill="#FFFFFF" fill-opacity="0.22"/>
-          <polygon points="520,0 610,0 710,420 570,420" fill="#FFFFFF" fill-opacity="0.18"/>
-          <g transform="translate(${fishX1}, ${88 + Math.sin(time * 3) * 8})" opacity="0.45">
-            <ellipse cx="0" cy="0" rx="16" ry="8" fill="#38BDF8"/>
+          <!-- Sunlit Underwater Caustic Beams -->
+          <polygon points="120,0 240,0 320,350 60,350" fill="url(#sunShaft)"/>
+          <polygon points="540,0 680,0 780,350 480,350" fill="url(#sunShaft)"/>
+
+          <!-- Swaying Pond Kelp Background -->
+          <path d="M90,360 Q${72 + sway * 1.6},285 ${96 - sway},220 Q${115 + sway},165 88,125" fill="none" stroke="#34D399" stroke-width="9" stroke-linecap="round" opacity="0.45"/>
+          <path d="M775,360 Q${795 - sway * 1.5},280 ${765 + sway},210 Q${745 - sway},155 780,115" fill="none" stroke="#10B981" stroke-width="10" stroke-linecap="round" opacity="0.4"/>
+          <path d="M810,360 Q${825 + sway * 1.3},305 ${805 - sway},255" fill="none" stroke="#059669" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+
+          <!-- Layered Pond Floor & Smooth Pebbles -->
+          <path d="M0,335 Q220,318 440,335 T880,335 L880,420 L0,420 Z" fill="#0284C7" fill-opacity="0.22"/>
+          <path d="M0,352 Q260,336 520,352 T880,348 L880,420 L0,420 Z" fill="#0369A1" fill-opacity="0.25"/>
+          <ellipse cx="265" cy="356" rx="34" ry="12" fill="#94A3B8" opacity="0.5"/>
+          <ellipse cx="620" cy="360" rx="42" ry="14" fill="#64748B" opacity="0.45"/>
+          <ellipse cx="450" cy="366" rx="26" ry="9" fill="#94A3B8" opacity="0.4"/>
+
+          <!-- Animated Background Pond Fish -->
+          <g transform="translate(${fishX1}, 95)" opacity="0.45">
+            <ellipse cx="0" cy="0" rx="16" ry="8" fill="#0284C7"/>
             <polygon points="-14,0 -24,-7 -24,7" fill="#0284C7"/>
           </g>
-          <g transform="translate(${fishX2}, ${145 + Math.cos(time * 2.6) * 7}) scale(-0.8, 0.8)" opacity="0.35">
-            <ellipse cx="0" cy="0" rx="16" ry="8" fill="#0EA5E9"/>
-            <polygon points="-14,0 -24,-7 -24,7" fill="#0369A1"/>
+          <g transform="translate(${fishX2}, 145) scale(-1,1)" opacity="0.35">
+            <ellipse cx="0" cy="0" rx="13" ry="6" fill="#0369A1"/>
+            <polygon points="-11,0 -19,-6 -19,6" fill="#0369A1"/>
           </g>
-          <path d="M120,375 Q${105 + sway},310 125,250 Q${140 - sway},200 120,160" fill="none" stroke="#34D399" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
-          <path d="M755,375 Q${770 - sway},315 750,260 Q${735 + sway},215 755,175" fill="none" stroke="#10B981" stroke-width="8" stroke-linecap="round" opacity="0.5"/>
-          ${ambient.map(p => `<circle cx="${p.x + Math.sin(time + p.phase) * 8}" cy="${p.y}" r="${p.r}" fill="#FFFFFF" fill-opacity="0.65"/>`).join('')}
+          ${ambient.slice(0, 7).map((b, idx) => `
+            <circle cx="${b.x}" cy="${((b.y - time * (24 + idx * 3)) % 360 + 360) % 360}" r="${b.r}"
+              fill="#FFFFFF" fill-opacity="0.55" stroke="#38BDF8" stroke-width="1"/>
+          `).join('')}
 
-          <path d="M170,360 Q310,318 460,355 Q585,322 710,362 L710,420 L170,420 Z" fill="#94A3B8"/>
-          <path d="M235,348 Q345,318 445,348 Z" fill="#64748B"/>
+          ${renderCalloutTag(335, 58, '1 Parent Hydra (2n)', 'neutral')}
 
           <!-- Parent Hydra -->
-          ${drawHydra(340, 336, 1.0, sway, '#F97316', '#9A3412')}
-          ${renderCalloutTag(335, 62, '1 Parent (2n)', 'neutral')}
-          ${renderDnaVisual(135, 58, 'clone', '2n')}
+          ${drawHydra(335, 340, 1, sway, '#10B981', '#065F46')}
 
-          <!-- Bud / Offspring Hydra -->
-          <g data-drag="${state.detached ? '' : 'hydra-bud'}" class="${state.detached ? '' : 'grab-target'}">
-            <g transform="translate(${bx + bobBud}, ${by - bobBud}) rotate(${budAngle})">
-              ${drawHydra(0, 0, budScale, -sway, '#FB923C', '#9A3412')}
+          <!-- Draggable Glowing Nutrient Bubbles -->
+          ${!state.readyToDetach ? state.nutrients.map((n, idx) => n.used ? '' : `
+            <g data-drag="hydra-food-${idx}" class="grab-target" transform="translate(${n.x}, ${n.y + Math.sin(time * 3 + n.phase) * 6})">
+              <circle cx="0" cy="0" r="${24 + Math.sin(time * 4 + idx) * 3}" fill="#34D399" fill-opacity="0.25" stroke="#10B981" stroke-width="2.5"/>
+              <circle cx="0" cy="0" r="14" fill="#10B981" stroke="#FFFFFF" stroke-width="2.5"/>
+              <circle cx="-4" cy="-4" r="3.5" fill="#FFFFFF" opacity="0.8"/>
             </g>
-            ${!state.readyToDetach && state.growth > 0 ? renderProgressRing(bx + 18, by - 14, 26, state.growth, '#10B981') : ''}
-            ${state.detached ? `
-              ${renderCalloutTag(555, 82, 'Clone (2n)', 'clone')}
-              ${renderDnaVisual(745, 58, 'clone', '100% Same')}
-            ` : ''}
+          `).join('') : ''}
+
+          <!-- Organic Tissue Tether While Pulling Bud Apart -->
+          ${showTether ? `
+            <path d="M${stalkAnchorX},${stalkAnchorY} Q${(stalkAnchorX + bx) * 0.5},${(stalkAnchorY + by) * 0.5 + 16} ${bx},${by}"
+              fill="none" stroke="#34D399" stroke-width="${lerp(11, 3, state.stretch)}" stroke-linecap="round"/>
+          ` : ''}
+
+          <!-- Interactive Bud / Detached Offspring -->
+          <g data-drag="${state.detached ? '' : 'hydra-bud'}" class="${state.detached ? '' : 'grab-target'}"
+             transform="translate(${bx}, ${by + bobBud}) rotate(${budAngle})">
+            <circle cx="0" cy="-35" r="46" fill="#10B981" fill-opacity="0"/>
+            ${drawHydra(0, 0, budScale, sway * 0.7, '#34D399', '#065F46')}
+            ${!state.readyToDetach && state.visualGrowth > 0 ? renderProgressRing(0, -34, 34, state.visualGrowth, '#10B981') : ''}
           </g>
+
+          ${state.detached ? `
+            ${renderCalloutTag(555, 76, 'Identical Clone (2n)', 'clone')}
+            ${renderDnaVisual(745, 58, 'clone', '100% Same')}
+          ` : ''}
+
           ${renderParticlesLayer()}
         `;
       }
 
-      // 2. SEA STAR (FRAGMENTATION & REGENERATION)
+      // 2. SEA STAR (FRAGMENTATION)
       else if (currentOrg === 'seastar') {
-        const easeSplit = easeOutBack(state.splitT);
-        const leftX = lerp(440, 275, easeSplit);
-        const rightX = lerp(440, 605, easeSplit);
-        const flex = Math.sin(time * 2.5) * 0.03;
-        const tilt = Math.sin(time * 1.8) * 1.8;
+        const splitOffset = easeOutBack(state.splitT) * 165;
+        const leftX = 440 - splitOffset;
+        const rightX = 440 + splitOffset;
+        const bobL = Math.sin(time * 2.3) * 3.5;
+        const bobR = Math.cos(time * 2.3) * 3.5;
 
         svg.innerHTML = `
           <defs>
-            <linearGradient id="sandBg" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="reefBg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#E0F2FE"/>
-              <stop offset="32%" stop-color="#FEF3C7"/>
+              <stop offset="55%" stop-color="#FCE7F3"/>
               <stop offset="100%" stop-color="#FDE68A"/>
             </linearGradient>
           </defs>
-          <rect width="880" height="420" fill="url(#sandBg)"/>
-          <circle cx="145" cy="340" r="14" fill="#FDBA74" opacity="0.6"/>
-          <circle cx="735" cy="335" r="18" fill="#FCD34D" opacity="0.65"/>
-          <ellipse cx="440" cy="365" rx="340" ry="22" fill="#F59E0B" fill-opacity="0.16"/>
-          ${ambient.map(p => `<circle cx="${p.x}" cy="${p.y}" r="${p.r}" fill="#F59E0B" fill-opacity="0.24"/>`).join('')}
+          <rect width="880" height="420" fill="url(#reefBg)"/>
+          <!-- Coral Reef Silhouettes & Swaying Sea Anemones -->
+          <path d="M55,365 L55,275 Q40,255 58,240 Q72,255 68,275 L76,255 Q92,240 96,262 L85,295 L85,365 Z" fill="#F472B6" opacity="0.32"/>
+          <path d="M800,365 L800,265 Q785,245 804,232 Q818,248 814,268 L825,248 Q842,235 844,258 L832,292 L832,365 Z" fill="#FB7185" opacity="0.32"/>
+          <path d="M0,340 Q220,322 440,340 T880,340 L880,420 L0,420 Z" fill="#FCD34D" fill-opacity="0.45"/>
+          <ellipse cx="440" cy="368" rx="410" ry="32" fill="#F59E0B" fill-opacity="0.22"/>
+          ${ambient.slice(0, 6).map((b, idx) => `
+            <circle cx="${b.x}" cy="${((b.y - time * (18 + idx * 2)) % 340 + 340) % 340}" r="${b.r}"
+              fill="#FFFFFF" fill-opacity="0.6" stroke="#F472B6" stroke-width="1"/>
+          `).join('')}
 
-          ${renderDnaVisual(135, 52, 'clone', '2n')}
-
-          <!-- Left Sea Star Half -->
-          <g transform="translate(${leftX}, 215) rotate(${tilt}) scale(${1 + flex})">
-            ${state.leftRegen > 0.01 ? `
-              <g transform="translate(8, 0) scale(${easeOutBack(state.leftRegen)})">
-                <polygon points="-8,-28 106,-28 36,18 60,92 -8,44"
-                  fill="#F472B6" stroke="#831843" stroke-width="3.5" stroke-linejoin="round"/>
-              </g>
-            ` : ''}
-            <polygon points="0,-108 14,-28 14,44 0,46 -66,92 -42,18 -112,-28 -28,-28"
-              fill="#A855F7" stroke="#581C87" stroke-width="4" stroke-linejoin="round"/>
-            <circle cx="-18" cy="-8" r="4" fill="#3B0764"/>
-            <circle cx="6" cy="-8" r="4" fill="#3B0764"/>
-          </g>
-
-          <!-- Right Sea Star Half -->
-          <g transform="translate(${rightX}, 215) rotate(${-tilt}) scale(${1 + flex})">
-            ${state.rightRegen > 0.01 ? `
-              <g transform="translate(14, 0) scale(${easeOutBack(state.rightRegen)})">
-                <polygon points="-14,-108 0,-28 0,44 -14,46 -80,92 -56,18 -126,-28 -42,-28"
-                  fill="#F472B6" stroke="#831843" stroke-width="3.5" stroke-linejoin="round"/>
-                <circle cx="-32" cy="-8" r="4" fill="#3B0764"/>
-                <circle cx="-8" cy="-8" r="4" fill="#3B0764"/>
-              </g>
-            ` : ''}
-            <polygon points="14,-28 112,-28 42,18 66,92 14,44"
-              fill="#C084FC" stroke="#581C87" stroke-width="4" stroke-linejoin="round"/>
-          </g>
-
-          <!-- Cut Line & Callouts -->
           ${!state.sliced ? `
-            ${renderCalloutTag(440, 56, '1 Parent (2n)', 'neutral')}
-            <line x1="454" y1="92" x2="454" y2="338" stroke="#EF4444" stroke-width="3.5" stroke-dasharray="8 6"/>
+            ${renderCalloutTag(440, 56, '1 Parent Sea Star (2n)', 'neutral')}
+            <g transform="translate(440, 215) rotate(${Math.sin(time * 1.6) * 2.5})">
+              <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46 -64,90 -42,16 -102,-32 -27,-32"
+                fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
+              <circle cx="-12" cy="-6" r="4" fill="#1E293B"/>
+              <circle cx="12" cy="-6" r="4" fill="#1E293B"/>
+              <path d="M-9,10 Q0,18 9,10" fill="none" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
+              <line x1="0" y1="-116" x2="0" y2="104" stroke="#0F172A" stroke-width="3.5" stroke-dasharray="10 8"/>
+            </g>
             ${state.bladeTrail.length > 1 ? `
-              <polyline points="${state.bladeTrail.map(p => `${p.x},${p.y}`).join(' ')}"
-                fill="none" stroke="#38BDF8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.88"/>
+              <polyline points="${state.bladeTrail.map(pt => `${pt.x},${pt.y}`).join(' ')}"
+                fill="none" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
             ` : ''}
           ` : `
-            ${renderCalloutTag(275, 65, state.leftRegen >= 1 ? 'Clone #1 (2n)' : 'Piece #1', state.leftRegen >= 1 ? 'clone' : 'warn')}
-            ${renderCalloutTag(605, 65, state.rightRegen >= 1 ? 'Clone #2 (2n)' : 'Piece #2', state.rightRegen >= 1 ? 'clone' : 'warn')}
-            ${state.leftRegen >= 1 && state.rightRegen >= 1 ? renderDnaVisual(745, 52, 'clone', '100% Same') : ''}
+            ${renderCalloutTag(leftX, 68, state.leftRegen >= 1 ? 'Clone #1 (2n)' : 'Split Piece #1', state.leftRegen >= 1 ? 'clone' : 'warn')}
+            ${renderCalloutTag(rightX, 68, state.rightRegen >= 1 ? 'Clone #2 (2n)' : 'Split Piece #2', state.rightRegen >= 1 ? 'clone' : 'warn')}
+
+            <!-- Left Split Piece + Regrowing Right Arms -->
+            <g transform="translate(${leftX}, ${215 + bobL})">
+              <polygon points="0,-105 0,46 -64,90 -42,16 -102,-32 -27,-32"
+                fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
+              ${state.leftRegen > 0 ? `
+                <g transform="scale(${easeOutBack(state.leftRegen)}, 1)">
+                  <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46"
+                    fill="#F9A8D4" stroke="#BE185D" stroke-width="3.5" stroke-dasharray="${state.leftRegen >= 1 ? 'none' : '6 4'}" stroke-linejoin="round"/>
+                </g>
+              ` : ''}
+              <circle cx="-12" cy="-6" r="4" fill="#1E293B"/>
+              ${state.leftRegen >= 1 ? `<circle cx="12" cy="-6" r="4" fill="#1E293B"/>` : ''}
+            </g>
+
+            <!-- Right Split Piece + Regrowing Left Arms -->
+            <g transform="translate(${rightX}, ${215 + bobR})">
+              <polygon points="0,-105 27,-32 102,-32 42,16 64,90 0,46"
+                fill="#F472B6" stroke="#BE185D" stroke-width="4" stroke-linejoin="round"/>
+              ${state.rightRegen > 0 ? `
+                <g transform="scale(${easeOutBack(state.rightRegen)}, 1)">
+                  <polygon points="0,-105 0,46 -64,90 -42,16 -102,-32 -27,-32"
+                    fill="#F9A8D4" stroke="#BE185D" stroke-width="3.5" stroke-dasharray="${state.rightRegen >= 1 ? 'none' : '6 4'}" stroke-linejoin="round"/>
+                </g>
+              ` : ''}
+              <circle cx="12" cy="-6" r="4" fill="#1E293B"/>
+              ${state.rightRegen >= 1 ? `<circle cx="-12" cy="-6" r="4" fill="#1E293B"/>` : ''}
+            </g>
+
+            ${state.regenDone ? renderDnaVisual(440, 355, 'clone', '100% Same') : ''}
           `}
 
-          <!-- Step 2: Water Nutrient Droplets -->
+          <!-- Step 2: Water Nutrient Droplets with Animated Ripple & Highlight -->
           ${state.sliced ? state.droplets.map((d, idx) => d.used ? '' : `
             <g data-drag="drop-${idx}" class="grab-target" transform="translate(${d.x}, ${d.y + Math.sin(time * 3.4 + idx) * 5})">
-              <path d="M0,-24 C16,-4 22,8 22,16 A22,22 0 1,1 -22,16 C-22,8 -16,-4 0,-24 Z"
-                fill="#38BDF8" stroke="#0284C7" stroke-width="3"/>
-              <ellipse cx="-6" cy="8" rx="4" ry="8" fill="#FFFFFF" opacity="0.6" transform="rotate(-20 -6 8)"/>
+              <circle cx="0" cy="6" r="${28 + Math.sin(time * 4.5 + idx) * 5}" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.45"/>
+              <path d="M0,-26 C18,-5 24,8 24,17 A24,24 0 1,1 -24,17 C-24,8 -18,-5 0,-26 Z"
+                fill="#38BDF8" stroke="#0284C7" stroke-width="3.2"/>
+              <ellipse cx="-7" cy="8" rx="4.5" ry="9" fill="#FFFFFF" opacity="0.7" transform="rotate(-20 -7 8)"/>
+              <circle cx="7" cy="18" r="2.5" fill="#FFFFFF" opacity="0.6"/>
             </g>
           `).join('') : ''}
+
+          <!-- Water Absorption Splash Wave on Regenerating Pieces -->
+          ${state.leftRegen > 0 && state.leftRegen < 0.9 ? `
+            <circle cx="${leftX}" cy="215" r="${35 + state.leftRegen * 85}" fill="none" stroke="#38BDF8" stroke-width="4" opacity="${1 - state.leftRegen}"/>
+          ` : ''}
+          ${state.rightRegen > 0 && state.rightRegen < 0.9 ? `
+            <circle cx="${rightX}" cy="215" r="${35 + state.rightRegen * 85}" fill="none" stroke="#38BDF8" stroke-width="4" opacity="${1 - state.rightRegen}"/>
+          ` : ''}
 
           ${renderParticlesLayer()}
         `;
@@ -1129,19 +1359,44 @@
       // 3. WHIPTAIL LIZARD (PARTHENOGENESIS)
       else if (currentOrg === 'lizard') {
         const tailFlick = Math.sin(time * 3.8) * 10;
-        const rot = Math.sin(state.wobble * 24) * 14;
+        const rot = Math.sin(state.wobble * 24) * 15;
         const headNod = Math.sin(time * 2.4) * 2.5;
+        const eggPop = easeOutBack(state.layT || 0);
+        const cloudX = ((time * 16) % 1040) - 90;
+        const isWarming = state.eggsLaid && !state.hatched && Math.hypot(state.sun.x - 552, state.sun.y - 275) < 120;
+        const sunRays = Array.from({ length: 12 }, (_, k) => {
+          const a = (k * Math.PI * 2) / 12;
+          const r1 = 34;
+          const r2 = 46 + (k % 2 === 0 ? Math.sin(time * 6) * 5 : Math.cos(time * 6) * 4);
+          return `<line x1="${Math.cos(a) * r1}" y1="${Math.sin(a) * r1}" x2="${Math.cos(a) * r2}" y2="${Math.sin(a) * r2}"
+            stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round"/>`;
+        }).join('');
+
         svg.innerHTML = `
           <defs>
             <linearGradient id="desertBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#FEF9C3"/>
-              <stop offset="100%" stop-color="#FDE68A"/>
+              <stop offset="0%" stop-color="#FEFCE8"/>
+              <stop offset="55%" stop-color="#FEF08A"/>
+              <stop offset="100%" stop-color="#FDE047"/>
+            </linearGradient>
+            <linearGradient id="sunCone" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FDE047" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#FDE047" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <rect width="880" height="420" fill="url(#desertBg)"/>
+          <!-- Distant Desert Mesas & Drifting Cloud -->
+          <polygon points="40,320 120,210 260,210 340,320" fill="#FCD34D" opacity="0.55"/>
+          <polygon points="560,320 630,225 760,225 835,320" fill="#FBBF24" opacity="0.4"/>
+          <g transform="translate(${cloudX}, 54)" opacity="0.7">
+            <ellipse cx="0" cy="0" rx="44" ry="16" fill="#FFFFFF"/>
+            <ellipse cx="26" cy="-5" rx="30" ry="14" fill="#FFFFFF"/>
+          </g>
+          <!-- Rolling Sand Dunes -->
+          <path d="M0,315 Q240,285 480,315 T880,305 L880,420 L0,420 Z" fill="#F59E0B" fill-opacity="0.22"/>
           <path d="M110,335 L110,220 A14,14 0 0,1 138,220 L138,335 Z" fill="#34D399" stroke="#059669" stroke-width="3"/>
           <path d="M110,275 L86,275 L86,245 A10,10 0 0,1 106,245 L106,260" fill="#34D399" stroke="#059669" stroke-width="3"/>
-          <ellipse cx="440" cy="360" rx="390" ry="28" fill="#F59E0B" fill-opacity="0.25"/>
+          <ellipse cx="440" cy="360" rx="390" ry="28" fill="#D97706" fill-opacity="0.25"/>
 
           ${renderCalloutTag(245, 62, '1 Female Only (No Male)', 'warn')}
 
@@ -1163,24 +1418,35 @@
               <circle cx="8" cy="-4" r="3.2" fill="#042F2E"/>
             </g>
             <path d="M-2,34 L-12,56 M46,34 L56,56" stroke="#065F46" stroke-width="5.5" stroke-linecap="round"/>
-            ${!state.eggsLaid && state.rubProgress > 0 ? renderProgressRing(24, 16, 30, state.rubProgress, '#F59E0B') : ''}
+            ${!state.eggsLaid && state.visualRub > 0 ? renderProgressRing(24, 16, 30, state.visualRub, '#F59E0B') : ''}
           </g>
 
-          <!-- Unfertilized Eggs -> 2 Hatched Female Clones -->
+          <!-- Unfertilized Eggs with Progressive Cracking -> 2 Hatched Female Clones -->
           ${state.eggsLaid && !state.hatched ? `
             ${renderCalloutTag(552, 185, 'Unfertilized Eggs', 'warn')}
-            ${state.eggs.map(eg => `
-              <g transform="translate(${eg.x}, ${eg.y}) rotate(${rot})">
+            ${isWarming ? `
+              <polygon points="${state.sun.x - 24},${state.sun.y + 18} ${state.sun.x + 24},${state.sun.y + 18} 635,295 470,295"
+                fill="url(#sunCone)" pointer-events="none"/>
+            ` : ''}
+            ${state.eggs.map((eg, idx) => `
+              <g transform="translate(${lerp(340, eg.x, eggPop)}, ${lerp(255, eg.y, eggPop)}) rotate(${rot * (idx === 0 ? 1 : -1)}) scale(${eggPop})">
                 <ellipse cx="0" cy="0" rx="22" ry="28" fill="#FFFBEB" stroke="#D97706" stroke-width="3.2"/>
-                ${state.warm > 0.35 ? `<path d="M-6,-10 L2,-1 L-5,7" fill="none" stroke="#92400E" stroke-width="2.2"/>` : ''}
+                <circle cx="-6" cy="-8" r="3" fill="#FDE68A"/>
+                <circle cx="7" cy="9" r="3.5" fill="#FDE68A"/>
+                ${state.warm > 0.25 ? `<path d="M-7,-12 L2,-2 L-6,7" fill="none" stroke="#92400E" stroke-width="2.4" stroke-linecap="round"/>` : ''}
+                ${state.warm > 0.65 ? `<path d="M2,-2 L10,5 L3,15" fill="none" stroke="#78350F" stroke-width="2.6" stroke-linecap="round"/>` : ''}
               </g>
             `).join('')}
-            ${state.warm > 0 ? renderProgressRing(552, 270, 42, state.warm, '#10B981') : ''}
+            ${state.warm > 0 ? renderProgressRing(552, 270, 44, state.warm, '#10B981') : ''}
 
-            <!-- Draggable Warm Sunbeam -->
-            <g data-drag="sunbeam" class="grab-target" transform="translate(${state.sun.x}, ${state.sun.y}) rotate(${time * 25})">
-              <circle cx="0" cy="0" r="28" fill="#FBBF24" stroke="#D97706" stroke-width="3"/>
-              <circle cx="0" cy="0" r="${40 + Math.sin(time * 4) * 4}" fill="#FDE047" fill-opacity="0.32"/>
+            <!-- Draggable Animated Radiant Sun -->
+            <g data-drag="sunbeam" class="grab-target" transform="translate(${state.sun.x}, ${state.sun.y})">
+              <circle cx="0" cy="0" r="${52 + Math.sin(time * 4) * 5}" fill="#FDE047" fill-opacity="0.28"/>
+              <g transform="rotate(${time * 28})">
+                ${sunRays}
+              </g>
+              <circle cx="0" cy="0" r="28" fill="#FBBF24" stroke="#D97706" stroke-width="3.2"/>
+              <circle cx="-8" cy="-8" r="7" fill="#FEF9C3" opacity="0.7"/>
             </g>
           ` : ''}
 
@@ -1188,6 +1454,10 @@
             ${renderCalloutTag(555, 155, 'Female Clones (2n)', 'clone')}
             ${renderDnaVisual(745, 58, 'clone', '100% Same')}
             ${state.eggs.map((eg, idx) => `
+              <!-- Cracked Empty Eggshells -->
+              <g transform="translate(${eg.x - 14}, ${eg.y + 16}) scale(0.75)">
+                <path d="M-18,0 A18,16 0 0,0 18,0 L9,-5 L0,3 L-9,-5 Z" fill="#FFFBEB" stroke="#D97706" stroke-width="3"/>
+              </g>
               <g transform="translate(${eg.tx + idx * 14}, ${eg.ty - idx * 18 + Math.sin(time * 4.5 + idx) * 3}) scale(${lerp(0.2, 0.56, easeOutBack(state.scurryT))})">
                 <path d="M-95,32 Q-45,${42 + tailFlick} 0,20" fill="none" stroke="#059669" stroke-width="10" stroke-linecap="round"/>
                 <ellipse cx="24" cy="16" rx="54" ry="20" fill="#34D399" stroke="#065F46" stroke-width="3"/>
@@ -1207,7 +1477,7 @@
       else if (currentOrg === 'plant') {
         const breeze = Math.sin(time * 2.4) * 4.5;
         const pupScale = state.pup.planted
-          ? lerp(0.58, 1.08, easeOutBack(state.pup.growT))
+          ? lerp(0.58, 1.12, easeOutBack(state.pup.growT))
           : lerp(0.1, 0.58, easeOutBack(state.sproutT));
 
         svg.innerHTML = `
@@ -1220,7 +1490,14 @@
             </linearGradient>
           </defs>
           <rect width="880" height="420" fill="url(#gardenBg)"/>
-          <circle cx="790" cy="65" r="${44 + Math.sin(time * 2) * 3}" fill="#FDE047" opacity="0.45"/>
+          <!-- Soft Greenhouse Arches & Hanging Garden Leaves -->
+          <path d="M80,285 A180,210 0 0,1 440,285" fill="none" stroke="#A7F3D0" stroke-width="4" opacity="0.65"/>
+          <path d="M440,285 A180,210 0 0,1 800,285" fill="none" stroke="#A7F3D0" stroke-width="4" opacity="0.65"/>
+          <path d="M60,0 Q72,42 54,82" fill="none" stroke="#34D399" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+          <path d="M825,0 Q812,48 830,90" fill="none" stroke="#10B981" stroke-width="6" stroke-linecap="round" opacity="0.45"/>
+          ${ambient.slice(0, 6).map((p, i) => `
+            <circle cx="${p.x + Math.sin(time * 1.4 + i) * 14}" cy="${120 + (i * 25) % 140}" r="3" fill="#FBBF24" opacity="0.55"/>
+          `).join('')}
 
           ${renderCalloutTag(265, 62, '1 Parent Leaf (2n)', 'neutral')}
 
@@ -1236,20 +1513,32 @@
             <path d="M-110,22 Q0,-10 115,-8" fill="none" stroke="#059669" stroke-width="2.5" stroke-dasharray="7 5"/>
           </g>
 
-          <!-- Step 1: Water Mist Droplet -->
+          <!-- Watering Ripple on Leaf -->
+          ${state.mist.used && state.sproutT < 0.85 ? `
+            <ellipse cx="305" cy="212" rx="${24 + state.sproutT * 75}" ry="${14 + state.sproutT * 42}"
+              fill="none" stroke="#38BDF8" stroke-width="3.5" opacity="${1 - state.sproutT}"/>
+          ` : ''}
+
+          <!-- Step 1: Water Mist Droplet with Ripple Halo -->
           ${!state.mist.used ? `
             <g data-drag="mist-drop" class="grab-target" transform="translate(${state.mist.x}, ${state.mist.y + Math.sin(time * 3.4) * 5})">
-              <path d="M0,-24 C16,-4 22,8 22,16 A22,22 0 1,1 -22,16 C-22,8 -16,-4 0,-24 Z"
-                fill="#38BDF8" stroke="#0284C7" stroke-width="3"/>
-              <ellipse cx="-6" cy="8" rx="4" ry="8" fill="#FFFFFF" opacity="0.6" transform="rotate(-20 -6 8)"/>
+              <circle cx="0" cy="6" r="${28 + Math.sin(time * 4.5) * 5}" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.5"/>
+              <path d="M0,-26 C18,-5 24,8 24,17 A24,24 0 1,1 -24,17 C-24,8 -18,-5 0,-26 Z"
+                fill="#38BDF8" stroke="#0284C7" stroke-width="3.2"/>
+              <ellipse cx="-7" cy="8" rx="4.5" ry="9" fill="#FFFFFF" opacity="0.7" transform="rotate(-20 -7 8)"/>
+              <circle cx="7" cy="18" r="2.5" fill="#FFFFFF" opacity="0.6"/>
             </g>
           ` : ''}
 
           <!-- Step 2: Sprouting / Planted Pup -->
           ${state.sproutT > 0.05 ? `
+            ${!state.pup.planted && Math.hypot(state.pup.x - 355, state.pup.y - 190) > 12 ? `
+              <path d="M355,190 Q${(355 + state.pup.x) * 0.5},${(190 + state.pup.y) * 0.5 + 24} ${state.pup.x},${state.pup.y}"
+                fill="none" stroke="#34D399" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+            ` : ''}
             <g data-drag="${state.pup.planted ? '' : 'plant-pup'}" class="${state.pup.planted ? '' : 'grab-target'}"
                transform="translate(${state.pup.x}, ${state.pup.y + (state.pup.planted ? 0 : Math.sin(time * 3) * 2.5)}) rotate(${breeze * 0.6}) scale(${pupScale})">
-              ${state.pup.planted && state.pup.growT > 0.1 ? `
+              ${state.pup.planted && state.pup.growT > 0.05 ? `
                 <g transform="scale(1, ${state.pup.growT})">
                   <path d="M0,0 L-18,38 M0,0 L0,44 M0,0 L18,38" stroke="#FDE047" stroke-width="3.5" stroke-linecap="round"/>
                 </g>
@@ -1258,7 +1547,19 @@
               <path d="M0,0 Q-46,-30 -52,-56 Q-20,-44 0,0 Z" fill="#10B981" stroke="#065F46" stroke-width="2.5"/>
               <path d="M0,0 Q46,-30 52,-56 Q20,-44 0,0 Z" fill="#10B981" stroke="#065F46" stroke-width="2.5"/>
             </g>
-            ${state.pup.planted ? `
+            ${state.pup.planted && !state.sunDrop.used ? `
+              <g data-drag="plant-sun" class="grab-target" transform="translate(${state.sunDrop.x}, ${state.sunDrop.y})">
+                <circle cx="0" cy="0" r="${44 + Math.sin(time * 4) * 5}" fill="#FDE047" fill-opacity="0.3"/>
+                <g transform="rotate(${time * 32})">
+                  ${Array.from({ length: 8 }, (_, k) => {
+                    const a = (k * Math.PI) / 4;
+                    return `<line x1="${Math.cos(a) * 28}" y1="${Math.sin(a) * 28}" x2="${Math.cos(a) * 40}" y2="${Math.sin(a) * 40}" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round"/>`;
+                  }).join('')}
+                </g>
+                <circle cx="0" cy="0" r="24" fill="#FBBF24" stroke="#D97706" stroke-width="3"/>
+              </g>
+            ` : ''}
+            ${state.sunDrop.used ? `
               ${renderCalloutTag(630, 128, 'Clone Plantlet (2n)', 'clone')}
               ${renderDnaVisual(760, 58, 'clone', '100% Same')}
             ` : ''}
@@ -1273,6 +1574,7 @@
         const chick = CHICK_VARIANTS[state.variantIdx];
         const bob = Math.sin(time * 3.4) * 4;
         const wingFlap = Math.sin(time * 6) * 8;
+        const cloudA = ((time * 14) % 1020) - 80;
         svg.innerHTML = `
           <defs>
             <linearGradient id="meadowBg" x1="0" y1="0" x2="0" y2="1">
@@ -1283,70 +1585,89 @@
             </linearGradient>
           </defs>
           <rect width="880" height="420" fill="url(#meadowBg)"/>
+          <!-- Rolling Hills & Drifting Cloud -->
+          <path d="M0,302 Q220,275 440,302 T880,295 L880,320 L0,320 Z" fill="#86EFAC" opacity="0.6"/>
+          <g transform="translate(${cloudA}, 55)" opacity="0.75">
+            <ellipse cx="0" cy="0" rx="46" ry="16" fill="#FFFFFF"/>
+            <ellipse cx="26" cy="-6" rx="28" ry="14" fill="#FFFFFF"/>
+          </g>
+          <!-- Animated Floating Hearts Between Parents -->
+          <path d="M440,${105 + Math.sin(time * 3) * 6} C432,${96 + Math.sin(time * 3) * 6} 420,${104 + Math.sin(time * 3) * 6} 440,${120 + Math.sin(time * 3) * 6} C460,${104 + Math.sin(time * 3) * 6} 448,${96 + Math.sin(time * 3) * 6} 440,${105 + Math.sin(time * 3) * 6} Z"
+            fill="#F43F5E" opacity="${0.35 + Math.sin(time * 4) * 0.2}"/>
 
           ${renderCalloutTag(185, 58, 'Male (2n)', 'neutral')}
           ${renderCalloutTag(695, 58, 'Female (2n)', 'neutral')}
 
           <!-- Left Rooster -->
-          <g transform="translate(185, ${250 + bob * 0.5})">
-            <ellipse cx="0" cy="18" rx="48" ry="38" fill="#D97706" stroke="#78350F" stroke-width="3.5"/>
-            <path d="M-44,4 Q-78,-26 -64,12 Q-84,-6 -66,24" fill="#9A3412" stroke="#78350F" stroke-width="3"/>
-            <circle cx="28" cy="-16" r="24" fill="#EA580C" stroke="#78350F" stroke-width="3.5"/>
-            <path d="M18,-38 Q26,-56 34,-39 Q42,-56 48,-36" fill="#EF4444" stroke="#991B1B" stroke-width="2.5"/>
-            <polygon points="50,-20 68,-14 50,-8" fill="#F59E0B"/>
-            <circle cx="34" cy="-20" r="3.5" fill="#1E293B"/>
+          <g transform="translate(185, ${235 + Math.sin(time * 2.5) * 2.5})">
+            <path d="M-38,10 Q-75,-35 -60,20 Q-82,-10 -52,32" fill="#4F46E5" stroke="#1E1B4B" stroke-width="3"/>
+            <ellipse cx="0" cy="18" rx="45" ry="34" fill="#6366F1" stroke="#1E1B4B" stroke-width="3.2"/>
+            <circle cx="30" cy="-14" r="22" fill="#818CF8" stroke="#1E1B4B" stroke-width="3"/>
+            <path d="M18,-34 Q26,-52 34,-35 Q42,-52 48,-32" fill="#EF4444" stroke="#991B1B" stroke-width="2.2"/>
+            <polygon points="50,-16 66,-10 50,-4" fill="#F59E0B" stroke="#1E1B4B" stroke-width="2.2"/>
+            <circle cx="36" cy="-18" r="3.5" fill="#1E1B4B"/>
           </g>
 
           <!-- Right Hen -->
-          <g transform="translate(695, ${255 - bob * 0.5})">
-            <ellipse cx="0" cy="16" rx="46" ry="36" fill="#FEF3C7" stroke="#92400E" stroke-width="3.5"/>
-            <circle cx="-12" cy="12" r="5" fill="#B45309" opacity="0.45"/>
-            <circle cx="10" cy="22" r="6" fill="#B45309" opacity="0.45"/>
-            <circle cx="-26" cy="-14" r="22" fill="#FDE68A" stroke="#92400E" stroke-width="3.5"/>
-            <path d="M-34,-34 Q-26,-46 -18,-34" fill="#F97316"/>
-            <polygon points="-46,-18 -62,-12 -46,-6" fill="#F97316"/>
-            <circle cx="-32" cy="-18" r="3.5" fill="#1E293B"/>
+          <g transform="translate(695, ${240 + Math.cos(time * 2.5) * 2.5})">
+            <path d="M36,12 Q64,-16 52,22" fill="#DB2777" stroke="#500724" stroke-width="3"/>
+            <ellipse cx="0" cy="18" rx="42" ry="32" fill="#EC4899" stroke="#500724" stroke-width="3.2"/>
+            <circle cx="-28" cy="-12" r="20" fill="#F472B6" stroke="#500724" stroke-width="3"/>
+            <path d="M-36,-30 Q-28,-44 -20,-30" fill="#EF4444" stroke="#991B1B" stroke-width="2.2"/>
+            <polygon points="-46,-14 -60,-8 -46,-2" fill="#F59E0B" stroke="#500724" stroke-width="2.2"/>
+            <circle cx="-33" cy="-16" r="3.5" fill="#500724"/>
           </g>
 
-          <!-- Center Cozy Straw Nest -->
-          <g transform="translate(440, 285)">
-            <path d="M-88,0 Q0,42 88,0 Q54,-24 -54,-24 Z" fill="#D97706" stroke="#92400E" stroke-width="3.5"/>
+          <!-- Center Nest -->
+          <g transform="translate(440, 292)">
+            <ellipse cx="0" cy="0" rx="88" ry="26" fill="#D97706" stroke="#78350F" stroke-width="3.2"/>
+            <ellipse cx="0" cy="-4" rx="70" ry="16" fill="#FDE68A"/>
           </g>
 
-          <!-- Draggable Parent Gamete Orbs -->
+          <!-- Draggable Haploid Gamete Orbs (♂ n and ♀ n) -->
           ${!state.roosterOrb.inNest ? `
-            <g data-drag="orb-rooster" class="grab-target" transform="translate(${state.roosterOrb.x}, ${state.roosterOrb.y + bob})">
+            <g data-drag="orb-rooster" class="grab-target" transform="translate(${state.roosterOrb.x}, ${state.roosterOrb.y + Math.sin(time * 3.2) * 5})">
               <circle cx="0" cy="0" r="28" fill="#6366F1" stroke="#FFFFFF" stroke-width="3.5"/>
-              <text x="0" y="5" text-anchor="middle" font-size="14" font-weight="900" fill="#FFFFFF">♂ n</text>
+              <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#FFFFFF">♂ n</text>
             </g>
           ` : ''}
-
           ${!state.henOrb.inNest ? `
-            <g data-drag="orb-hen" class="grab-target" transform="translate(${state.henOrb.x}, ${state.henOrb.y - bob})">
+            <g data-drag="orb-hen" class="grab-target" transform="translate(${state.henOrb.x}, ${state.henOrb.y + Math.cos(time * 3.2) * 5})">
               <circle cx="0" cy="0" r="28" fill="#EC4899" stroke="#FFFFFF" stroke-width="3.5"/>
-              <text x="0" y="5" text-anchor="middle" font-size="14" font-weight="900" fill="#FFFFFF">♀ n</text>
+              <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#FFFFFF">♀ n</text>
             </g>
           ` : ''}
 
-          <!-- Genetic Mix Vortex & Fertilized Egg -->
+          <!-- Genetic Mix Vortex & Cracking Fertilized Egg -->
           ${state.swirlT > 0 && !state.hatched ? `
             <g data-drag="${state.eggReady ? 'fowl-egg' : ''}" class="${state.eggReady ? 'grab-target' : ''}"
-               transform="translate(440, 248) rotate(${state.eggReady ? Math.sin(time * 8) * 6 : 0})">
+               transform="translate(440, 248) rotate(${state.eggReady ? Math.sin(time * 10) * (6 + (state.crackClicks || 0) * 6) : 0})">
               ${!state.eggReady ? `
                 <circle cx="0" cy="0" r="${(1 - state.swirlT) * 58 + 14}" fill="none" stroke="#818CF8" stroke-width="4.5" stroke-dasharray="10 6"
                   transform="rotate(${state.swirlT * 420})"/>
               ` : ''}
-              <ellipse cx="0" cy="0" rx="28" ry="35" fill="#FFFBEB" stroke="#6366F1" stroke-width="3.5"/>
-              <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#312E81">2n</text>
+              <ellipse cx="0" cy="0" rx="30" ry="37" fill="#FFFBEB" stroke="#6366F1" stroke-width="3.5"/>
+              ${(state.crackClicks || 0) >= 1 ? `
+                <path d="M-12,-14 L-2,-4 L-10,6 L2,16 L-4,25" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/>
+                <path d="M-2,-4 L10,-10 L14,2" fill="none" stroke="#78350F" stroke-width="2.5" stroke-linecap="round"/>
+              ` : ''}
+              <text x="0" y="6" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#312E81">2n</text>
             </g>
-            ${renderCalloutTag(440, 175, state.eggReady ? 'Tap Egg to Hatch!' : 'n + n Fusing...', 'mix')}
+            ${renderCalloutTag(440, 175, state.eggReady ? ((state.crackClicks || 0) >= 1 ? 'Tap Once More!' : 'Tap Egg to Crack!') : 'n + n Fusing...', 'mix')}
           ` : ''}
 
-          <!-- Hatched Unique Chick -->
+          <!-- Hatched Unique Chick + Cracked Eggshell Halves -->
           ${state.hatched ? `
-            ${renderCalloutTag(440, 132, 'Unique Mix (2n)', 'mix')}
+            ${renderCalloutTag(440, 128, 'Unique Mix (2n)', 'mix')}
             ${renderDnaVisual(440, 62, 'mix', '50% + 50%')}
-            <g transform="translate(440, ${232 + bob})">
+            <!-- Split Eggshells Flying Open -->
+            <g transform="translate(${440 - lerp(8, 48, easeOutBack(state.hatchT || 1))}, 272) rotate(${lerp(0, -28, state.hatchT || 1)})">
+              <path d="M-22,0 A22,20 0 0,0 22,0 L11,-6 L0,4 L-11,-6 Z" fill="#FFFBEB" stroke="#6366F1" stroke-width="3"/>
+            </g>
+            <g transform="translate(${440 + lerp(8, 48, easeOutBack(state.hatchT || 1))}, 272) rotate(${lerp(0, 28, state.hatchT || 1)})">
+              <path d="M-22,0 A22,20 0 0,0 22,0 L11,-6 L0,4 L-11,-6 Z" fill="#FFFBEB" stroke="#6366F1" stroke-width="3"/>
+            </g>
+            <g transform="translate(440, ${226 + bob}) scale(${lerp(0.45, 1, easeOutBack(state.hatchT || 1))})">
               <path d="M-32,6 Q-52,-12 -44,12" fill="${chick.tail}" stroke="#1E293B" stroke-width="2.5"/>
               <circle cx="0" cy="0" r="38" fill="${chick.body}" stroke="#1E293B" stroke-width="3.2"/>
               <ellipse cx="-12" cy="4" rx="15" ry="11" fill="${chick.wing}" stroke="#1E293B" stroke-width="2.5" transform="rotate(${wingFlap} -12 4)"/>
@@ -1363,41 +1684,67 @@
 
       // 6. HUMAN GAMETES (FERTILIZATION)
       else if (currentOrg === 'gametes') {
-        const tailWave = Math.sin(time * 10) * 10;
         const rippleR = 66 + Math.sin(time * 3.2) * 4;
-        const nucleiX = lerp(28, 0, state.fuseT);
+        const nucleiX = lerp(30, 0, state.fuseT);
+        const fusionWaveR = state.fertilized && state.fuseT < 1 ? 66 + state.fuseT * 52 : 0;
 
         svg.innerHTML = `
-          <rect width="880" height="420" fill="#F8FAFC"/>
-          ${ambient.map(p => `<circle cx="${p.x}" cy="${p.y}" r="${p.r}" fill="#C7D2FE" fill-opacity="0.5"/>`).join('')}
+          <defs>
+            <linearGradient id="fluidBg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#EEF2FF"/>
+              <stop offset="50%" stop-color="#F8FAFC"/>
+              <stop offset="100%" stop-color="#FFF1F2"/>
+            </linearGradient>
+          </defs>
+          <rect width="880" height="420" fill="url(#fluidBg)"/>
+          <path d="M0,110 Q220,${85 + Math.sin(time * 2) * 18} 440,110 T880,110" fill="none" stroke="#C7D2FE" stroke-width="3" opacity="0.45"/>
+          <path d="M0,315 Q220,${340 - Math.sin(time * 2) * 18} 440,315 T880,315" fill="none" stroke="#FECDD3" stroke-width="3" opacity="0.45"/>
+          ${ambient.map(p => `<circle cx="${p.x + Math.sin(time * 1.5 + p.phase) * 12}" cy="${p.y}" r="${p.r}" fill="#C7D2FE" fill-opacity="0.55"/>`).join('')}
 
           ${!state.fertilized ? `
             ${renderCalloutTag(200, 65, 'Sperm (n = 23)', 'neutral')}
             ${renderCalloutTag(650, 65, 'Egg (n = 23)', 'neutral')}
           ` : `
-            ${renderCalloutTag(645, 76, state.divideT >= 0.4 ? 'Embryo (2n = 46)' : 'Zygote (2n = 46)', 'mix')}
+            ${renderCalloutTag(645, 76, state.divideClicks >= 1 ? 'Dividing Embryo (2n = 46)' : 'Zygote (2n = 46)', 'mix')}
             ${renderDnaVisual(240, 210, 'mix', '23 + 23 = 46')}
           `}
 
-          <!-- Right Ovum / Zygote / Dividing Embryo -->
-          <g transform="translate(645, 210)">
-            ${state.divideT < 0.35 ? `
+          <!-- Right Ovum / Fertilization Fusion / Dividing Embryo -->
+          <g data-drag="${state.fertilized && state.fuseT >= 0.92 && state.divideClicks < 2 ? 'zygote-cell' : ''}"
+             class="${state.fertilized && state.fuseT >= 0.92 && state.divideClicks < 2 ? 'grab-target' : ''}"
+             transform="translate(645, 210)">
+            ${fusionWaveR > 0 ? `
+              <circle cx="0" cy="0" r="${fusionWaveR}" fill="none" stroke="#818CF8" stroke-width="5" opacity="${1 - state.fuseT}"/>
+              <circle cx="0" cy="0" r="${fusionWaveR * 0.85}" fill="none" stroke="#FB7185" stroke-width="3.5" opacity="${1 - state.fuseT}"/>
+            ` : ''}
+
+            ${state.divideT < 0.2 ? `
+              <!-- Outer Zona Pellucida Membrane -->
+              <circle cx="0" cy="0" r="${rippleR + 10}" fill="#FFE4E6" fill-opacity="0.35" stroke="#FDA4AF" stroke-width="2" stroke-dasharray="6 5"/>
               <circle cx="0" cy="0" r="${rippleR}" fill="#FFE4E6" stroke="#F43F5E" stroke-width="4"/>
               ${!state.fertilized ? `
                 <circle cx="0" cy="0" r="24" fill="#FDA4AF" stroke="#E11D48" stroke-width="2.5"/>
                 <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#881337">23</text>
               ` : `
-                <circle cx="${-nucleiX}" cy="0" r="20" fill="#818CF8" opacity="0.88"/>
-                <circle cx="${nucleiX}" cy="0" r="20" fill="#FB7185" opacity="0.88"/>
+                <!-- Entering Sperm Head Merging Into Pronuclei -->
+                ${state.fuseT < 0.75 ? `
+                  <g transform="translate(${lerp(-64, -18, state.fuseT)}, 0) scale(${1 - state.fuseT * 0.4})" opacity="${1 - state.fuseT}">
+                    <path d="M-20,0 Q-48,${Math.sin(time * 18) * 10} -76,0" fill="none" stroke="#4F46E5" stroke-width="4" stroke-linecap="round"/>
+                    <ellipse cx="0" cy="0" rx="20" ry="14" fill="#EEF2FF" stroke="#4F46E5" stroke-width="3"/>
+                  </g>
+                ` : ''}
+                <!-- Two Pronuclei (23 + 23) Spiraling & Fusing into One Diploid Nucleus (46) -->
+                <circle cx="${-nucleiX}" cy="${Math.sin(state.fuseT * Math.PI) * -10}" r="${lerp(19, 27, state.fuseT)}" fill="#818CF8" opacity="0.88"/>
+                <circle cx="${nucleiX}" cy="${Math.sin(state.fuseT * Math.PI) * 10}" r="${lerp(19, 27, state.fuseT)}" fill="#FB7185" opacity="0.88"/>
                 <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#1E293B">
-                  ${state.fuseT > 0.8 ? '46' : '23+23'}
+                  ${state.fuseT > 0.78 ? '46' : '23+23'}
                 </text>
               `}
             ` : `
-              <circle cx="0" cy="0" r="${70 + Math.sin(time * 4) * 2}" fill="#EEF2FF" stroke="#6366F1" stroke-width="4"/>
+              <circle cx="0" cy="0" r="${72 + Math.sin(time * 4) * 2}" fill="#EEF2FF" stroke="#6366F1" stroke-width="4"/>
               <circle cx="-22" cy="-18" r="24" fill="#C7D2FE" stroke="#4F46E5" stroke-width="3"/>
               <circle cx="22" cy="-18" r="24" fill="#FECDD3" stroke="#E11D48" stroke-width="3"/>
-              ${state.divideT > 0.65 ? `
+              ${state.divideT > 0.72 ? `
                 <circle cx="-22" cy="22" r="24" fill="#FDE68A" stroke="#D97706" stroke-width="3"/>
                 <circle cx="22" cy="22" r="24" fill="#A7F3D0" stroke="#059669" stroke-width="3"/>
               ` : ''}
@@ -1405,14 +1752,21 @@
             `}
           </g>
 
-          <!-- Swimming Sperm Cells -->
-          ${!state.fertilized ? state.sperms.map((sp, i) => `
-            <g data-drag="sperm-${i}" class="grab-target" transform="translate(${sp.x}, ${sp.y})">
-              <path d="M-24,0 Q-52,${tailWave + i * 2} -82,${-tailWave}" fill="none" stroke="#4F46E5" stroke-width="4.5" stroke-linecap="round"/>
-              <ellipse cx="0" cy="0" rx="25" ry="17" fill="#EEF2FF" stroke="#4F46E5" stroke-width="3.5"/>
-              <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#312E81">23</text>
-            </g>
-          `).join('') : ''}
+          <!-- Swimming Sperm Cells with Sinuous Flagella -->
+          ${!state.fertilized ? state.sperms.map((sp, i) => {
+            const w1 = Math.sin(time * 13 + i * 1.7) * 11;
+            const w2 = Math.cos(time * 13 + i * 1.7) * 13;
+            const swimAngle = Math.cos(time * 2.6 + sp.phase) * 7;
+            return `
+              <g data-drag="sperm-${i}" class="grab-target" transform="translate(${sp.x}, ${sp.y}) rotate(${swimAngle})">
+                <circle cx="-22" cy="0" r="44" fill="#6366F1" fill-opacity="0"/>
+                <path d="M-24,0 Q-44,${w1} -64,0 T-104,${w2}" fill="none" stroke="#4F46E5" stroke-width="4.5" stroke-linecap="round"/>
+                <ellipse cx="-26" cy="0" rx="6" ry="5" fill="#818CF8"/>
+                <ellipse cx="0" cy="0" rx="25" ry="17" fill="#EEF2FF" stroke="#4F46E5" stroke-width="3.5"/>
+                <text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="#312E81">23</text>
+              </g>
+            `;
+          }).join('') : ''}
 
           ${renderParticlesLayer()}
         `;
